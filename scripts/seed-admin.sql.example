@@ -1,0 +1,4 @@
+-- 1. npx tsx scripts/hash-password.ts 'your-password'  -> paste below
+-- 2. npx wrangler d1 execute spinecast --local --file scripts/seed-admin.sql   (or --remote)
+insert into users (id, email, password_hash, role, created_at)
+values ('admin-0001', 'you@example.com', 'PASTE_HASH_HERE', 'admin', unixepoch());

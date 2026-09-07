@@ -1,0 +1,17 @@
+Spinecast
+Copyright 2026 Định Nguyễn
+
+This product includes software developed by Định Nguyễn
+(https://github.com/dinhnn).
+
+Licensed under the Apache License, Version 2.0. You must retain this
+NOTICE file in any distribution or derivative work, and any modified
+file must carry a prominent notice saying that you changed it.
+
+--------------------------------------------------------------------
+Third-party components
+
+foliate-js (vendor/foliate-js)
+  Copyright (c) 2022 John Factotum
+  MIT License - https://github.com/johnfactotum/foliate-js
+  Included as a git submodule; see vendor/foliate-js/LICENSE.

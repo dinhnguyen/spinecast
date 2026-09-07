@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #f6f1e8;
+  --color-surface: #fffdf8;
+  --color-ink: #2a251f;
+  --color-muted: #5d564f;
+  --color-faint: #776c5f;
+  /* Decorative only - dividers and card outlines, which WCAG sets no minimum for. */
+  --color-border: #e4dccf;
+  /* The outline of a control whose box is the only thing identifying it, so it
+     has to clear 3:1 against both backgrounds (WCAG 1.4.11). */
+  --color-control: #968a78;
+  --color-accent: #8a5a2b;
+  --color-accent-ink: #5f3c19;
+  --color-accent-soft: #f0e5d6;
+  --color-on-accent: #fff8ee;
+  --color-ok: #4f7a4a;
+  --color-ok-soft: #f1f5ef;
+  --color-warn: #96641a;
+  --color-warn-soft: #f8f1e3;
+  --color-danger: #a2442e;
+  --color-danger-soft: #f3e0da;
+  --color-dark: #221e1a;
+  /* Reading calendar: an empty day, then four steps of how long that day was.
+     Five steps cannot each clear 3:1, so the squares carry a label as well. */
+  --color-heat-0: #f3eee4;
+  --color-heat-1: #d8b88a;
+  --color-heat-2: #b6803f;
+  --color-heat-3: #8a5a2b;
+  --color-heat-4: #5f3c19;
+  /* The artboards reserve 54px above every mobile screen for the iPhone status bar
+     they deliberately do not draw. In a browser tab that inset is 0, so a hardcoded
+     54px would be dead space; under viewport-fit=cover in a standalone PWA it resolves
+     back to the artboard's 54px (47px status bar + the 7px gap the mockup leaves). */
+  --spacing-safe-top: max(18px, calc(env(safe-area-inset-top) + 7px));
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+button:not(:disabled), [role="button"]:not(:disabled), summary, label[for] { cursor: pointer; }
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { color: var(--color-accent-ink); }

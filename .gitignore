@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+docs/design/mockups/shots/
+docs/design/mockups/cf-book-mockups.html
+.worktrees/
+worker-configuration.d.ts
+test-results/
+playwright-report/
+scripts/seed-admin.sql
+.claude/
+.publish/
+.DS_Store

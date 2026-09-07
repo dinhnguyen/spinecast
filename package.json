@@ -1,0 +1,61 @@
+{
+  "name": "spinecast",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "typecheck": "npm run lint:strings && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "lint:strings": "node scripts/check-strings.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply spinecast --local",
+    "db:migrate:remote": "wrangler d1 migrations apply spinecast --remote",
+    "types": "wrangler types",
+    "admin:hash": "tsx scripts/hash-password.ts",
+    "fixtures": "tsx scripts/make-fixture-epub.mjs"
+  },
+  "keywords": [],
+  "author": "Định Nguyễn",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": "true",
+  "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.1",
+    "fast-xml-parser": "^5.11.1",
+    "fflate": "^0.8.3",
+    "hono": "4.13",
+    "lucide": "^1.41.0",
+    "react": "19.2",
+    "react-dom": "19.2",
+    "react-router": "^8.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.54",
+    "@cloudflare/vitest-plugin": "1.1",
+    "@cloudflare/workers-types": "^5.20260904.1",
+    "@playwright/test": "1.62",
+    "@tailwindcss/vite": "4.3",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "6.1",
+    "jsdom": "^29.1.1",
+    "sharp": "^0.35.4",
+    "tailwindcss": "4.3",
+    "tsx": "^4.23.13",
+    "typescript": "5.9",
+    "vite": "8.2",
+    "vitest": "4.1",
+    "wrangler": "4.129"
+  }
+}
