@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../appEnv';
 import { ApiError } from '../errors';
+import type { Env } from '../env';
 import { deleteCatalog, findCatalog, insertCatalog, listCatalogs, recordCatalogResult, toCatalogDto, updateCatalog, type OpdsCatalogRow } from '../db/opdsCatalogs';
 import { findBookWithProgress, listSourceEntryIds, setBookSourceIfUnset } from '../db/books';
 import { requireAuth } from '../middleware/requireAuth';
@@ -81,11 +82,12 @@ export const resolveCatalogUrl = (catalog: OpdsCatalogRow, href: string | undefi
   return url;
 };
 
-export const targetFor = async (encKey: string, selfHostname: string, catalog: OpdsCatalogRow, url: URL): Promise<RemoteTarget> => ({
+export const targetFor = async (env: Env, selfHostname: string, catalog: OpdsCatalogRow, url: URL): Promise<RemoteTarget> => ({
   url,
   username: catalog.username,
-  password: catalog.password_enc ? await decryptString(catalog.password_enc, encKey) : '',
+  password: catalog.password_enc ? await decryptString(catalog.password_enc, env.SYNC_ENC_KEY) : '',
   selfHostname,
+  self: env.SELF,
 });
 
 const selfHostOf = (reqUrl: string): string => new URL(reqUrl).hostname;
@@ -109,7 +111,7 @@ export const loadFeed = async (target: RemoteTarget) => {
 };
 
 const probe = async (c: { env: AppEnv['Bindings']; req: { url: string } }, catalog: OpdsCatalogRow): Promise<void> => {
-  const target = await targetFor(c.env.SYNC_ENC_KEY, selfHostOf(c.req.url), catalog, new URL(catalog.url));
+  const target = await targetFor(c.env, selfHostOf(c.req.url), catalog, new URL(catalog.url));
   await loadFeed(target);
 };
 
@@ -175,7 +177,7 @@ const requireCatalog = async (c: Context<AppEnv>): Promise<OpdsCatalogRow> => {
 opdsCatalogRoutes.get('/:id/browse', async (c) => {
   const catalog = await requireCatalog(c);
   const url = resolveCatalogUrl(catalog, c.req.query('href'));
-  const target = await targetFor(c.env.SYNC_ENC_KEY, selfHostOf(c.req.url), catalog, url);
+  const target = await targetFor(c.env, selfHostOf(c.req.url), catalog, url);
   const now = Math.floor(Date.now() / 1000);
   let feed;
   try {
@@ -203,7 +205,7 @@ opdsCatalogRoutes.get('/:id/image', async (c) => {
   const catalog = await requireCatalog(c);
   const href = c.req.query('href');
   if (!href) throw new ApiError(400, 'validation', 'href required');
-  const target = await targetFor(c.env.SYNC_ENC_KEY, selfHostOf(c.req.url), catalog, resolveCatalogUrl(catalog, href));
+  const target = await targetFor(c.env, selfHostOf(c.req.url), catalog, resolveCatalogUrl(catalog, href));
   let got;
   try {
     got = await fetchRemoteBinary(target, { maxBytes: IMAGE_MAX_BYTES, allowType: IMAGE_TYPE });
@@ -234,7 +236,7 @@ opdsCatalogRoutes.post('/:id/import', async (c) => {
   if (!entryId) throw new ApiError(400, 'validation', 'entryId required');
 
   const url = resolveCatalogUrl(catalog, href);
-  const target = await targetFor(c.env.SYNC_ENC_KEY, selfHostOf(c.req.url), catalog, url);
+  const target = await targetFor(c.env, selfHostOf(c.req.url), catalog, url);
   let got;
   try {
     got = await fetchRemoteBinary(target, { maxBytes: Number(c.env.MAX_UPLOAD_BYTES), allowType: /^/ });

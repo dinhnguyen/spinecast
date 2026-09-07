@@ -33,3 +33,14 @@ describe('crypto', () => {
     await expect(verifyPassword('anything', 'not-even-the-right-shape')).resolves.toBe(false);
   });
 });
+
+describe('SYNC_ENC_KEY validation', () => {
+  it('names the missing key rather than failing as a base64 error', async () => {
+    // What production actually did: the secret was never set, so the key arrived
+    // as undefined and the request died with a DOMException.
+    await expect(encryptString('x', undefined as unknown as string)).rejects.toThrow(/SYNC_ENC_KEY/);
+    await expect(encryptString('x', '')).rejects.toThrow(/32 bytes/);
+    await expect(encryptString('x', 'not base64!!')).rejects.toThrow(/SYNC_ENC_KEY/);
+    await expect(encryptString('x', btoa('too-short'))).rejects.toThrow(/32 bytes, got 9/);
+  });
+});

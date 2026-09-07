@@ -52,8 +52,23 @@ export const md5Hex = async (data: Uint8Array | string): Promise<string> => {
 export const sha256Hex = async (data: string): Promise<string> =>
   toHex(await crypto.subtle.digest('SHA-256', enc.encode(data)));
 
-const importAesKey = (keyB64: string): Promise<CryptoKey> =>
-  crypto.subtle.importKey('raw', fromB64(keyB64), 'AES-GCM', false, ['encrypt', 'decrypt']);
+// An unset SYNC_ENC_KEY used to surface as an atob DOMException from deep inside a
+// request, which the error handler turned into a bare 500 with nothing to go on -
+// on production that cost an afternoon. It is a deployment mistake, so it says so.
+const importAesKey = (keyB64: string): Promise<CryptoKey> => {
+  let raw: Uint8Array;
+  try {
+    raw = fromB64(keyB64 ?? '');
+  } catch {
+    throw new Error('SYNC_ENC_KEY is not valid base64 - set it with: wrangler secret put SYNC_ENC_KEY');
+  }
+  if (raw.length !== 32) {
+    throw new Error(
+      `SYNC_ENC_KEY must decode to 32 bytes, got ${raw.length} - generate one with: openssl rand -base64 32`,
+    );
+  }
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+};
 
 export const encryptString = async (plain: string, keyB64: string): Promise<string> => {
   const iv = crypto.getRandomValues(new Uint8Array(12));

@@ -12,6 +12,7 @@
     { "binding": "DB", "database_name": "spinecast", "database_id": "cf5e470a-1a34-4255-8b7c-3615a89ff1b0", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "BOOKS", "bucket_name": "spinecast-books" }],
+  "services": [{ "binding": "SELF", "service": "spinecast" }],
   "kv_namespaces": [{ "binding": "SESSIONS", "id": "4a0948c8b8e34e2493c4a1b2565d0fd5" }],
   "vars": { "MAX_UPLOAD_BYTES": "104857600", "SESSION_TTL_SECONDS": "2592000" },
   "observability": { "enabled": true }

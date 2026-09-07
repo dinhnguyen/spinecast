@@ -17,6 +17,9 @@ export interface RemoteTarget {
   username: string;
   password: string;
   selfHostname: string;
+  // This Worker bound to itself, for the one hostname the global fetch cannot
+  // reach: our own. Optional so every other caller and the tests stay as they are.
+  self?: Fetcher;
 }
 
 interface FetchOpts {
@@ -55,8 +58,17 @@ const authHeaders = (t: RemoteTarget): Record<string, string> =>
 
 // Redirects are handled by hand: fetch's own following would jump to a host the
 // guard never sees, which is a straight path to the cloud metadata endpoint.
+// Asked per hop, not once: a redirect can leave our own origin, and the binding
+// serves this Worker only.
+export const usesSelfBinding = (url: URL, t: RemoteTarget): boolean => !!t.self && url.hostname === t.selfHostname;
+
+const transportFor = (url: URL, t: RemoteTarget): typeof fetch => {
+  if (fetchOverride) return fetchOverride;
+  if (usesSelfBinding(url, t)) return t.self!.fetch.bind(t.self!) as typeof fetch;
+  return fetch;
+};
+
 const send = async (t: RemoteTarget): Promise<Response> => {
-  const doFetch = fetchOverride ?? fetch;
   const originalOrigin = t.url.origin;
   let url = t.url;
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
@@ -66,7 +78,7 @@ const send = async (t: RemoteTarget): Promise<Response> => {
       // The catalog itself picks a redirect target, so its credentials must not
       // follow it off the origin they were meant for.
       const headers = { accept: '*/*', ...(url.origin === originalOrigin ? authHeaders(t) : {}) };
-      res = await doFetch(url.toString(), { headers, redirect: 'manual' });
+      res = await transportFor(url, t)(url.toString(), { headers, redirect: 'manual' });
     } catch {
       throw new CatalogFetchError('catalog_unreachable', 'request failed');
     }

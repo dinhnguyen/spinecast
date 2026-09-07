@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMockOpdsCatalog } from '../../../test/mockOpdsCatalog';
 import { FEED_TYPE, IMAGE_TYPE } from '../routes/opdsCatalogs';
-import { CatalogFetchError, fetchRemoteBinary, fetchRemoteText, setCatalogFetchForTests } from './fetchRemote';
+import { CatalogFetchError, fetchRemoteBinary, fetchRemoteText, setCatalogFetchForTests, usesSelfBinding } from './fetchRemote';
 
 const target = (path: string, creds: { username?: string; password?: string } = {}) => ({
   url: new URL(`https://books.test${path}`),
@@ -198,5 +198,26 @@ describe('fetchRemoteBinary', () => {
     expect((await fetchRemoteBinary(target('/get/thumb-caps/1'), { maxBytes: 1000, allowType: IMAGE_TYPE })).contentType).toBe('IMAGE/PNG');
     await expect(fetchRemoteBinary(target('/get/svg/1'), { maxBytes: 1000, allowType: IMAGE_TYPE })).rejects.toMatchObject({ code: 'not_opds' });
     await expect(fetchRemoteBinary(target('/get/svg-caps/1'), { maxBytes: 1000, allowType: IMAGE_TYPE })).rejects.toMatchObject({ code: 'not_opds' });
+  });
+});
+
+describe('usesSelfBinding', () => {
+  // Cloudflare answers a Worker's subrequest to its own zone with a 522: it looks
+  // for the zone's origin instead of re-entering the Worker, and there is no
+  // origin. Our own hostname has to go through the service binding.
+  const self = {} as unknown as Fetcher;
+
+  it('is true only for our own hostname, and only when the binding is there', () => {
+    const t = { ...target('/opds'), selfHostname: 'book.dinhnn.com', self };
+    expect(usesSelfBinding(new URL('https://book.dinhnn.com/opds/x/public'), t)).toBe(true);
+    expect(usesSelfBinding(new URL('https://books.test/opds'), t)).toBe(false);
+    const { self: _dropped, ...noBinding } = t;
+    expect(usesSelfBinding(new URL('https://book.dinhnn.com/opds/x/public'), noBinding)).toBe(false);
+  });
+
+  it('follows a redirect off our origin back onto the global fetch', () => {
+    const t = { ...target('/opds'), selfHostname: 'book.dinhnn.com', self };
+    expect(usesSelfBinding(new URL('https://book.dinhnn.com/a'), t)).toBe(true);
+    expect(usesSelfBinding(new URL('https://elsewhere.test/a'), t)).toBe(false);
   });
 });
