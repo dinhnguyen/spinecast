@@ -7,9 +7,11 @@ export const createMockOpdsCatalog = (opts: { username?: string; password?: stri
   const calls: string[] = [];
   let redirectTo: string | null = null;
 
+  // A password with no username is a real configuration - it is what Spinecast's
+  // own feed wants - so auth is required whenever either half is set.
   const authed = (header: string | undefined): boolean => {
-    if (!opts.username) return true;
-    return header === `Basic ${btoa(`${opts.username}:${opts.password ?? ''}`)}`;
+    if (!opts.username && !opts.password) return true;
+    return header === `Basic ${btoa(`${opts.username ?? ''}:${opts.password ?? ''}`)}`;
   };
 
   app.use('*', async (c, next) => {

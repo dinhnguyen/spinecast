@@ -38,8 +38,20 @@ const guard = (url: URL, selfHostname: string): void => {
   if (isBlockedHost(url.hostname, selfHostname)) throw new CatalogFetchError('blocked_host', 'host is not allowed');
 };
 
+// RFC 7617 leaves the charset to the server, and UTF-8 is what browsers send;
+// btoa on its own throws on anything outside Latin-1, which a password with a
+// Vietnamese character would have done.
+const basicAuth = (username: string, password: string): string => {
+  let latin1 = '';
+  for (const byte of new TextEncoder().encode(`${username}:${password}`)) latin1 += String.fromCharCode(byte);
+  return `Basic ${btoa(latin1)}`;
+};
+
+// A credential with no username still goes out: Spinecast's own OPDS feed checks
+// the password alone (the token), as does any catalog handing out bare tokens, so
+// gating this on the username left the app unable to subscribe to its own catalog.
 const authHeaders = (t: RemoteTarget): Record<string, string> =>
-  t.username ? { authorization: `Basic ${btoa(`${t.username}:${t.password}`)}` } : {};
+  t.username || t.password ? { authorization: basicAuth(t.username, t.password) } : {};
 
 // Redirects are handled by hand: fetch's own following would jump to a host the
 // guard never sees, which is a straight path to the cloud metadata endpoint.

@@ -47,6 +47,37 @@ describe('fetchRemoteText', () => {
     }
   });
 
+  it('sends the credential when only a password is set, which is what a token catalog wants', async () => {
+    // Spinecast's own feed ignores the username and checks the token as the
+    // password, so a source pointing back at Spinecast has no username to give.
+    const mock = createMockOpdsCatalog({ password: 'kyx4i7yyw6l3bpwu7woo7dnm' });
+    setCatalogFetchForTests(recording(mock.fetch));
+    await expect(fetchRemoteText(target('/opds'), { maxBytes: 2_000_000, allowType: FEED_TYPE })).rejects.toMatchObject({
+      code: 'catalog_auth',
+    });
+    inits = [];
+    const body = await fetchRemoteText(target('/opds', { password: 'kyx4i7yyw6l3bpwu7woo7dnm' }), {
+      maxBytes: 2_000_000,
+      allowType: FEED_TYPE,
+    });
+    expect(body).toContain('Calibre Library');
+    for (const init of inits) {
+      expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${btoa(':kyx4i7yyw6l3bpwu7woo7dnm')}`);
+    }
+  });
+
+  it('encodes the credential as UTF-8 rather than throwing on it', async () => {
+    const mock = createMockOpdsCatalog();
+    setCatalogFetchForTests(recording(mock.fetch));
+    await fetchRemoteText(target('/opds', { username: 'Định', password: 'mật khẩu' }), {
+      maxBytes: 2_000_000,
+      allowType: FEED_TYPE,
+    });
+    const header = (inits[0]!.headers as Record<string, string>).authorization!;
+    const bytes = Uint8Array.from(atob(header.slice('Basic '.length)), (ch) => ch.charCodeAt(0));
+    expect(new TextDecoder().decode(bytes)).toBe('Định:mật khẩu');
+  });
+
   it('maps a 500 to catalog_unreachable and a transport failure too', async () => {
     const mock = createMockOpdsCatalog();
     setCatalogFetchForTests(mock.fetch);

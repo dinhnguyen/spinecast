@@ -9,10 +9,10 @@
     "run_worker_first": ["/api/*", "/opds/*"]
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "spinecast", "database_id": "cf5e470a-1a34-4255-8b7c-3615a89ff1b0", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "spinecast", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "BOOKS", "bucket_name": "spinecast-books" }],
-  "kv_namespaces": [{ "binding": "SESSIONS", "id": "4a0948c8b8e34e2493c4a1b2565d0fd5" }],
+  "kv_namespaces": [{ "binding": "SESSIONS", "id": "REPLACE_WITH_KV_ID" }],
   "vars": { "MAX_UPLOAD_BYTES": "104857600", "SESSION_TTL_SECONDS": "2592000" },
   "observability": { "enabled": true }
 }
