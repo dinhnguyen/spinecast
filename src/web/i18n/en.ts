@@ -197,6 +197,7 @@ export const en: Record<keyof typeof vi, string> & PluralOne = {
   'settings.opds.urlLabel': 'Catalog URL',
   'settings.opds.copyUrl': 'Copy URL',
   'settings.opds.copyToken': 'Copy token',
+  'settings.opds.copyShareLink': 'Copy share link',
   'settings.opds.revealNote': 'The token is shown once. Save it before you leave this page.',
   'settings.opds.noToken': 'No token yet',
   'settings.opds.statusUsed': 'Created {date} · last used {when}',

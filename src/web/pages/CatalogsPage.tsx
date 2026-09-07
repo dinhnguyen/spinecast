@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router';
+import { useEffect, useState } from 'react';
+import { NavLink, useSearchParams } from 'react-router';
 import type { OpdsCatalogDto } from '../../shared/apiTypes';
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/Button';
@@ -26,6 +26,7 @@ export const CatalogsPage = () => {
   const { settings } = useSyncSettings();
   const { t, locale } = useLocale();
   const badge = syncBadgeFor(settings, locale);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,6 +34,19 @@ export const CatalogsPage = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  // A share link (Settings > share-via-OPDS > copy-share-link) lands here with `url`/
+  // `token` so the recipient can save it without retyping either by hand. Cleared from
+  // the address bar right after, so a refresh does not reopen a stale token.
+  useEffect(() => {
+    const url = searchParams.get('url');
+    if (!url) return;
+    setEditingId(null);
+    setInput({ name: '', url, username: '', password: searchParams.get('token') ?? '' });
+    setFormError(null);
+    setFormOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const openAdd = () => {
     setEditingId(null);

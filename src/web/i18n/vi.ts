@@ -188,6 +188,7 @@ export const vi = {
   'settings.opds.urlLabel': 'URL catalog',
   'settings.opds.copyUrl': 'Sao chép URL',
   'settings.opds.copyToken': 'Sao chép token',
+  'settings.opds.copyShareLink': 'Sao chép link chia sẻ',
   'settings.opds.revealNote': 'Token chỉ hiển thị một lần. Lưu lại trước khi rời trang.',
   'settings.opds.noToken': 'Chưa tạo token',
   'settings.opds.statusUsed': 'Tạo ngày {date} · dùng lần cuối {when}',

@@ -13,6 +13,7 @@ interface OpdsTokenCardProps {
   url: string;
   token: OpdsTokenDto | null;
   revealed: string | null;
+  shareLink?: string | null;
   busy: boolean;
   t: Translate;
   locale: Locale;
@@ -21,7 +22,7 @@ interface OpdsTokenCardProps {
   onCopy: (text: string) => void;
 }
 
-export const OpdsTokenCard = ({ scope, title, description, url, token, revealed, busy, t, locale, onCreate, onRevoke, onCopy }: OpdsTokenCardProps) => (
+export const OpdsTokenCard = ({ scope, title, description, url, token, revealed, shareLink, busy, t, locale, onCreate, onRevoke, onCopy }: OpdsTokenCardProps) => (
   <section className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-[18px]">
     <div className="flex flex-col gap-[3px]">
       <h2 className="text-[16px] font-semibold">{title}</h2>
@@ -49,6 +50,11 @@ export const OpdsTokenCard = ({ scope, title, description, url, token, revealed,
           </button>
         </div>
         <span className="text-[12.5px] text-faint">{t('settings.opds.revealNote')}</span>
+        {shareLink ? (
+          <Button kind="surface" icon="share" height={44} className="md:!h-[40px]" onClick={() => onCopy(shareLink)}>
+            {t('settings.opds.copyShareLink')}
+          </Button>
+        ) : null}
       </div>
     ) : null}
     <div className="flex flex-wrap items-center justify-between gap-3">

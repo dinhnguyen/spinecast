@@ -1,9 +1,9 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider, useLocale } from '../i18n/LocaleProvider';
 import { STORAGE_KEY } from '../i18n/locale';
-import { AuthProvider, useAuth } from './auth';
+import { AuthProvider, RequireAuth, useAuth } from './auth';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -77,5 +77,44 @@ describe('AuthProvider locale sync', () => {
       screen.getByText('en').click();
     });
     expect(screen.getByTestId('locale').textContent).toBe('en');
+  });
+});
+
+const FromProbe = () => {
+  const location = useLocation();
+  return <span data-testid="from">{(location.state as { from?: string } | null)?.from ?? ''}</span>;
+};
+
+const mountGuarded = (entry: string) =>
+  render(
+    <MemoryRouter initialEntries={[entry]}>
+      <LocaleProvider initial="vi">
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<FromProbe />} />
+            <Route
+              path="/catalogs"
+              element={
+                <RequireAuth>
+                  <span>protected</span>
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </LocaleProvider>
+    </MemoryRouter>,
+  );
+
+describe('RequireAuth', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the query string in the login redirect state', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ error: { code: 'unauthorized', message: 'no' } }, 401));
+    mountGuarded('/catalogs?url=https%3A%2F%2Fx.test%2Fopds&token=abc');
+    await waitFor(() => expect(screen.getByTestId('from').textContent).toBe('/catalogs?url=https%3A%2F%2Fx.test%2Fopds&token=abc'));
   });
 });

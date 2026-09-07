@@ -1,5 +1,5 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useSearchParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n/LocaleProvider';
 import { AuthProvider } from '../lib/auth';
@@ -75,5 +75,26 @@ describe('CatalogsPage', () => {
     mount();
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Lỗi máy chủ'));
     expect(screen.queryByText('Chưa có nguồn nào. Thêm URL catalog OPDS để duyệt và tải sách về.')).toBeNull();
+  });
+
+  it('opens the add form pre-filled from a share link, then clears the query string', async () => {
+    routeFetch({ items: [] });
+    const SearchProbe = () => {
+      const [params] = useSearchParams();
+      return <span data-testid="search">{params.toString()}</span>;
+    };
+    render(
+      <MemoryRouter initialEntries={['/catalogs?url=https%3A%2F%2Fx.test%2Fopds&token=tok-123']}>
+        <LocaleProvider initial="vi">
+          <AuthProvider>
+            <CatalogsPage />
+            <SearchProbe />
+          </AuthProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect((screen.getByLabelText('URL catalog') as HTMLInputElement).value).toBe('https://x.test/opds'));
+    expect((screen.getByLabelText(/Mật khẩu/) as HTMLInputElement).value).toBe('tok-123');
+    expect(screen.getByTestId('search').textContent).toBe('');
   });
 });

@@ -105,6 +105,11 @@ export const OpdsSettingsForm = () => {
             url={catalogUrl(window.location.origin, user.id, 'public')}
             token={tokens?.public ?? null}
             revealed={revealed.public ?? null}
+            shareLink={
+              revealed.public
+                ? `${window.location.origin}/catalogs?url=${encodeURIComponent(catalogUrl(window.location.origin, user.id, 'public'))}&token=${encodeURIComponent(revealed.public)}`
+                : null
+            }
             busy={busyScope === 'public'}
             t={t}
             locale={locale}
