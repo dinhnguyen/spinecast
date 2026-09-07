@@ -115,3 +115,20 @@ describe('passkey schema', () => {
     for (const name of ['user_id', 'public_key', 'name', 'created_at']) expect(by.get(name)!.notnull, name).toBe(1);
   });
 });
+
+describe('book blobs schema', () => {
+  it('creates book_blobs keyed by content hash', async () => {
+    const cols = await env.DB.prepare('pragma table_info(book_blobs)').all<{ name: string; pk: number; notnull: number }>();
+    const by = new Map(cols.results.map((c) => [c.name, c]));
+    expect([...by.keys()].sort()).toEqual(['content_hash', 'created_at', 'filesize', 'r2_key']);
+    expect(by.get('content_hash')!.pk).toBe(1);
+    for (const name of ['r2_key', 'filesize', 'created_at']) expect(by.get(name)!.notnull, name).toBe(1);
+  });
+
+  it('adds a nullable books.blob_hash', async () => {
+    const cols = await env.DB.prepare('pragma table_info(books)').all<{ name: string; notnull: number }>();
+    const blobHash = cols.results.find((c) => c.name === 'blob_hash');
+    expect(blobHash).toBeDefined();
+    expect(blobHash!.notnull).toBe(0);
+  });
+});

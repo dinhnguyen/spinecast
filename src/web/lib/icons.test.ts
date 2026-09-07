@@ -3,7 +3,7 @@ import { ICONS } from './icons';
 
 describe('icons', () => {
   it('has every icon used by the mockups', () => {
-    for (const k of ['upload', 'list', 'type', 'gear', 'back', 'sync', 'check', 'alert', 'bookmark', 'highlight', 'chev', 'library', 'chart', 'user', 'eye', 'search', 'plus', 'copy', 'x', 'logout', 'more', 'share', 'cloud', 'key'])
+    for (const k of ['upload', 'list', 'type', 'gear', 'back', 'sync', 'check', 'alert', 'bookmark', 'highlight', 'chev', 'library', 'chart', 'user', 'eye', 'search', 'plus', 'copy', 'x', 'logout', 'more', 'share', 'cloud', 'key', 'grid', 'rows', 'square', 'checkSquare'])
       expect(ICONS[k as keyof typeof ICONS].length).toBeGreaterThan(0);
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decryptString, encryptString, hashPassword, md5Hex, randomHex, verifyPassword } from './crypto';
+import { decryptString, encryptString, hashPassword, md5Hex, randomHex, sha256Hex, verifyPassword } from './crypto';
 
 const KEY = 'dGVzdC1rZXktMzItYnl0ZXMtbG9uZy0wMDAwMDAwMDA=';
 
@@ -14,6 +14,11 @@ describe('crypto', () => {
   it('computes md5 like KOReader does for the auth key', async () => {
     expect(await md5Hex('')).toBe('d41d8cd98f00b204e9800998ecf8427e');
     expect(await md5Hex('Foundryside - Robert Jackson Bennett.epub')).toBe('25f8abb4f4f5594f02f361726814fea1');
+  });
+
+  it('computes sha256 of both strings and raw bytes', async () => {
+    expect(await sha256Hex('')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect(await sha256Hex(new TextEncoder().encode('abc'))).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });
 
   it('round-trips aes-gcm', async () => {

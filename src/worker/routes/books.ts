@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../appEnv';
 import { ApiError } from '../errors';
-import { deleteBook, findBook, findBookWithProgress, listBooksWithProgress, setBookShared } from '../db/books';
+import { deleteBook, deleteBookAndCountBlobHash, findBook, findBookWithProgress, listBooksWithProgress, setBookShared, type BookRow } from '../db/books';
+import { deleteBlob } from '../db/bookBlobs';
 import { requireAuth } from '../middleware/requireAuth';
 import { EpubParseError } from '../services/epub';
 import { ingestBook } from '../services/ingestBook';
@@ -32,6 +33,63 @@ bookRoutes.post('/upload', async (c) => {
 });
 
 bookRoutes.get('/', async (c) => c.json({ items: await listBooksWithProgress(c.env.DB, c.var.user.id) }));
+
+// Shared by the single-item and bulk delete routes: a book carrying a blob_hash only
+// frees its R2 object once no other book still references that blob (dedup, see
+// ingestBook); a legacy row (blob_hash null) deletes exactly as it always did.
+const deleteBookAndBlob = async (db: D1Database, bucket: R2Bucket, book: BookRow): Promise<void> => {
+  if (book.blob_hash) {
+    await deleteBookAndCountBlobHash(db, book.id, book.blob_hash);
+    if (await deleteBlob(db, book.blob_hash)) await bucket.delete(book.r2_key);
+  } else {
+    await deleteBook(db, book.id);
+    await bucket.delete(book.r2_key);
+  }
+  if (book.cover_r2_key) await bucket.delete(book.cover_r2_key);
+};
+
+const parseIds = (body: unknown): string[] => {
+  const ids = (body as { ids?: unknown } | null)?.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((i) => typeof i === 'string')) {
+    throw new ApiError(400, 'validation', 'ids must be a non-empty array of strings');
+  }
+  return ids;
+};
+
+bookRoutes.post('/bulk-delete', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new ApiError(400, 'validation', 'body must be JSON');
+  }
+  const ids = parseIds(body);
+  const deleted: string[] = [];
+  for (const id of ids) {
+    const book = await findBook(c.env.DB, c.var.user.id, id);
+    if (!book) continue;
+    await deleteBookAndBlob(c.env.DB, c.env.BOOKS, book);
+    deleted.push(id);
+  }
+  return c.json({ deleted });
+});
+
+bookRoutes.patch('/bulk-share', async (c) => {
+  let body: { ids?: unknown; shared?: unknown };
+  try {
+    body = (await c.req.json()) as { ids?: unknown; shared?: unknown };
+  } catch {
+    throw new ApiError(400, 'validation', 'body must be JSON');
+  }
+  const ids = parseIds(body);
+  if (typeof body.shared !== 'boolean') throw new ApiError(400, 'validation', 'shared must be true or false');
+  const items = [];
+  for (const id of ids) {
+    const ok = await setBookShared(c.env.DB, c.var.user.id, id, body.shared);
+    if (ok) items.push(await findBookWithProgress(c.env.DB, c.var.user.id, id));
+  }
+  return c.json({ items });
+});
 
 bookRoutes.get('/:id', async (c) => {
   const dto = await findBookWithProgress(c.env.DB, c.var.user.id, c.req.param('id'));
@@ -78,8 +136,6 @@ bookRoutes.patch('/:id', async (c) => {
 bookRoutes.delete('/:id', async (c) => {
   const book = await findBook(c.env.DB, c.var.user.id, c.req.param('id'));
   if (!book) throw new ApiError(404, 'not_found', 'book not found');
-  await deleteBook(c.env.DB, book.id);
-  await c.env.BOOKS.delete(book.r2_key);
-  if (book.cover_r2_key) await c.env.BOOKS.delete(book.cover_r2_key);
+  await deleteBookAndBlob(c.env.DB, c.env.BOOKS, book);
   return c.body(null, 204);
 });

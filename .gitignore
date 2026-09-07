@@ -5,6 +5,7 @@ dist/
 docs/design/mockups/shots/
 docs/design/mockups/cf-book-mockups.html
 .worktrees/
+.superpowers/
 worker-configuration.d.ts
 test-results/
 playwright-report/

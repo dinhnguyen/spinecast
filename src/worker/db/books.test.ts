@@ -1,8 +1,9 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { createUser } from '../../../test/helpers';
-import { findBook, insertBook, listSourceEntryIds, setBookSourceIfUnset } from './books';
+import { deleteBookAndCountBlobHash, findBook, insertBook, listSourceEntryIds, setBookSourceIfUnset } from './books';
 import { insertCatalog } from './opdsCatalogs';
+import { insertBlobIfMissing } from './bookBlobs';
 
 describe('book provenance', () => {
   it('maps entry ids to book ids for the ones actually imported', async () => {
@@ -51,5 +52,24 @@ describe('book provenance', () => {
     const map = await listSourceEntryIds(env.DB, user.id, 'cat-big', entryIds);
     expect(map.size).toBe(120);
     for (const entryId of entryIds) expect(map.get(entryId)).toBe(`bk-big-${entryIds.indexOf(entryId)}`);
+  });
+});
+
+describe('deleteBookAndCountBlobHash', () => {
+  it('reports remaining referencing rows after deleting one', async () => {
+    const user = await createUser(env);
+    await insertBlobIfMissing(env.DB, { content_hash: 'shared-hash', r2_key: 'blobs/shared.epub', filesize: 10, created_at: 1 });
+    for (const id of ['bk-x', 'bk-y']) {
+      await insertBook(env.DB, {
+        id, user_id: user.id, title: 'T', author: 'A', filename: 'a.epub', filesize: 10,
+        r2_key: 'blobs/shared.epub', cover_r2_key: null, shared: 0, hash_partial: `hp-${id}`, hash_filename: `hf-${id}`,
+        blob_hash: 'shared-hash', created_at: 1, last_opened_at: null, source_catalog_id: null, source_entry_id: null,
+      });
+    }
+    const remainingAfterFirst = await deleteBookAndCountBlobHash(env.DB, 'bk-x', 'shared-hash');
+    expect(remainingAfterFirst).toBe(1);
+    expect(await findBook(env.DB, user.id, 'bk-x')).toBeNull();
+    const remainingAfterSecond = await deleteBookAndCountBlobHash(env.DB, 'bk-y', 'shared-hash');
+    expect(remainingAfterSecond).toBe(0);
   });
 });

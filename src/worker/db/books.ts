@@ -12,6 +12,7 @@ export interface BookRow {
   shared: number;
   hash_partial: string;
   hash_filename: string;
+  blob_hash?: string | null;
   created_at: number;
   last_opened_at: number | null;
   source_catalog_id: string | null;
@@ -72,10 +73,10 @@ export const rowToDto = (r: BookWithProgressRow): BookDto => ({
 export const insertBook = async (db: D1Database, row: BookRow): Promise<void> => {
   await db
     .prepare(
-      `insert into books (id, user_id, title, author, filename, filesize, r2_key, cover_r2_key, hash_partial, hash_filename, created_at, last_opened_at, source_catalog_id, source_entry_id)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `insert into books (id, user_id, title, author, filename, filesize, r2_key, cover_r2_key, hash_partial, hash_filename, blob_hash, created_at, last_opened_at, source_catalog_id, source_entry_id)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(row.id, row.user_id, row.title, row.author, row.filename, row.filesize, row.r2_key, row.cover_r2_key, row.hash_partial, row.hash_filename, row.created_at, row.last_opened_at, row.source_catalog_id, row.source_entry_id)
+    .bind(row.id, row.user_id, row.title, row.author, row.filename, row.filesize, row.r2_key, row.cover_r2_key, row.hash_partial, row.hash_filename, row.blob_hash ?? null, row.created_at, row.last_opened_at, row.source_catalog_id, row.source_entry_id)
     .run();
 };
 
@@ -100,6 +101,14 @@ export const findBookByPartialHash = (db: D1Database, userId: string, hash: stri
 
 export const deleteBook = async (db: D1Database, bookId: string): Promise<void> => {
   await db.prepare('delete from books where id = ?').bind(bookId).run();
+};
+
+export const deleteBookAndCountBlobHash = async (db: D1Database, bookId: string, blobHash: string): Promise<number> => {
+  const results = await db.batch<{ n: number }>([
+    db.prepare('delete from books where id = ?').bind(bookId),
+    db.prepare('select count(*) as n from books where blob_hash = ?').bind(blobHash),
+  ]);
+  return results[1]?.results[0]?.n ?? 0;
 };
 
 export const touchBookOpened = async (db: D1Database, bookId: string, ts: number): Promise<void> => {

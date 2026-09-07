@@ -4,7 +4,8 @@ import { app } from '../app';
 import { setCatalogFetchForTests } from '../opdsClient/fetchRemote';
 import { createMockOpdsCatalog } from '../../../test/mockOpdsCatalog';
 import { buildMinimalEpub } from '../../../test/fixtures/makeMinimalEpub';
-import { createUserAndLogin, jsonRequest } from '../../../test/helpers';
+import { createUserAndLogin, jsonRequest, uploadFixture } from '../../../test/helpers';
+import { findBook } from '../db/books';
 import { loadFeed } from './opdsCatalogs';
 
 const CATALOG = { name: 'Calibre nhà', url: 'https://books.test/opds', username: 'me', password: 'pw-not-real' };
@@ -263,5 +264,18 @@ describe('import', () => {
     const notEpub = await app.request(...jsonRequest(`/api/opds/catalogs/${cat.id}/import`, 'POST', { href: '/html', entryId: 'e' }, cookie), env);
     expect(notEpub.status).toBe(400);
     expect((await notEpub.json()).error.code).toBe('not_epub');
+  });
+
+  it('shares the R2 object when a different user imports the same bytes through a catalog', async () => {
+    const a = await createUserAndLogin(env);
+    const b = await createUserAndLogin(env);
+    const bookA = await uploadFixture(env, a.cookie);
+    const cat = await seedCatalog(b.cookie);
+    const res = await app.request(...jsonRequest(`/api/opds/catalogs/${cat.id}/import`, 'POST', { href: '/get/EPUB/1', entryId: 'urn:uuid:1111' }, b.cookie), env);
+    expect(res.status).toBe(201);
+    const bookB = await res.json();
+    const rowA = (await findBook(env.DB, a.user.id, bookA.id))!;
+    const rowB = (await findBook(env.DB, b.user.id, bookB.id))!;
+    expect(rowB.r2_key).toBe(rowA.r2_key);
   });
 });

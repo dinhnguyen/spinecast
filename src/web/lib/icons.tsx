@@ -3,15 +3,18 @@ import {
   Bookmark,
   ChartColumn,
   Check,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
   CloudDownload,
   Copy,
   EllipsisVertical,
   Eye,
+  Grid,
   Highlighter,
   KeyRound,
   Library,
+  List,
   LogOut,
   Plus,
   RefreshCw,
@@ -19,6 +22,7 @@ import {
   Settings,
   TextInitial,
   Share,
+  Square,
   TriangleAlert,
   Upload,
   User,
@@ -30,6 +34,8 @@ import {
 // (no bullets), Share over Share2 (an arrow, not a network), CloudDownload over
 // Cloud (the OPDS tab pulls books down), and TextInitial for the reader's type
 // controls - a drop cap reads as typography where a plain T reads as text entry.
+// `list` (AlignLeft) is already taken by the reader's TOC button, so the library's
+// view toggle uses `rows` (List, the bulleted one) instead.
 export const ICONS = {
   upload: Upload,
   list: AlignLeft,
@@ -55,6 +61,10 @@ export const ICONS = {
   share: Share,
   cloud: CloudDownload,
   key: KeyRound,
+  grid: Grid,
+  rows: List,
+  square: Square,
+  checkSquare: CheckSquare,
 } as const;
 
 export type IconName = keyof typeof ICONS;

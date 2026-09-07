@@ -49,8 +49,10 @@ export const md5Hex = async (data: Uint8Array | string): Promise<string> => {
   return toHex(await crypto.subtle.digest('MD5', bytes));
 };
 
-export const sha256Hex = async (data: string): Promise<string> =>
-  toHex(await crypto.subtle.digest('SHA-256', enc.encode(data)));
+export const sha256Hex = async (data: Uint8Array | string): Promise<string> => {
+  const bytes = typeof data === 'string' ? enc.encode(data) : data;
+  return toHex(await crypto.subtle.digest('SHA-256', bytes));
+};
 
 // An unset SYNC_ENC_KEY used to surface as an atob DOMException from deep inside a
 // request, which the error handler turned into a bare 500 with nothing to go on -

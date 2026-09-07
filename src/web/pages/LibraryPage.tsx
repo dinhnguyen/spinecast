@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../components/AppShell';
 import { BookCard } from '../components/BookCard';
+import { BulkActionBar } from '../components/BulkActionBar';
 import { LibrarySort } from '../components/LibrarySort';
+import { LibraryViewToggle } from '../components/LibraryViewToggle';
 import { SyncBadge } from '../components/SyncBadge';
 import { UploadDropzone } from '../components/UploadDropzone';
 import { useBooks } from '../hooks/useBooks';
@@ -13,6 +15,7 @@ import { loadSort, saveSort, sortBooks, type SortKey } from '../lib/bookSort';
 import { describeError } from '../lib/errorMessage';
 import { syncBadgeFor } from '../lib/format';
 import { Icon } from '../lib/icons';
+import { loadView, saveView, type ViewMode } from '../lib/libraryView';
 
 const useIsDesktop = (): boolean => {
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
@@ -26,7 +29,7 @@ const useIsDesktop = (): boolean => {
 };
 
 export const LibraryPage = () => {
-  const { books, error, upload, remove, setShared } = useBooks();
+  const { books, error, upload, remove, setShared, bulkRemove, bulkSetShared } = useBooks();
   const { settings } = useSyncSettings();
   const { toast, show } = useToast();
   const { t, tn, locale } = useLocale();
@@ -37,6 +40,9 @@ export const LibraryPage = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>(loadSort);
+  const [view, setView] = useState<ViewMode>(loadView);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -47,6 +53,44 @@ export const LibraryPage = () => {
   const changeSort = (key: SortKey) => {
     setSort(key);
     saveSort(key);
+  };
+
+  const changeView = (mode: ViewMode) => {
+    setView(mode);
+    saveView(mode);
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = filtered.length > 0 && filtered.every((b) => selectedIds.has(b.id));
+
+  const handleBulkShare = async (shared: boolean) => {
+    try {
+      await bulkSetShared(Array.from(selectedIds), shared);
+    } catch (e) {
+      show(describeError(e, t));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await bulkRemove(Array.from(selectedIds));
+      exitSelectMode();
+    } catch (e) {
+      show(describeError(e, t));
+    }
   };
 
   const reading = books.filter((b) => b.progress && b.progress.pctQ / 10_000 < 99).length;
@@ -114,7 +158,15 @@ export const LibraryPage = () => {
         ) : null}
         <div className="flex items-center justify-between">
           <SyncBadge {...badge} />
-          <LibrarySort value={sort} onChange={changeSort} variant="mobile" />
+          <div className="flex items-center gap-2.5">
+            {!selectMode && filtered.length > 0 ? (
+              <button type="button" onClick={() => setSelectMode(true)} className="text-[13.5px] text-muted">
+                {t('library.select')}
+              </button>
+            ) : null}
+            <LibraryViewToggle value={view} onChange={changeView} />
+            <LibrarySort value={sort} onChange={changeSort} variant="mobile" />
+          </div>
         </div>
       </div>
 
@@ -136,6 +188,12 @@ export const LibraryPage = () => {
                 className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
               />
             </div>
+            {!selectMode && filtered.length > 0 ? (
+              <button type="button" onClick={() => setSelectMode(true)} className="flex h-[38px] items-center rounded-[6px] border border-border bg-surface px-3 text-[14px] text-muted">
+                {t('library.select')}
+              </button>
+            ) : null}
+            <LibraryViewToggle value={view} onChange={changeView} />
             <LibrarySort value={sort} onChange={changeSort} variant="desktop" />
           </div>
         </div>
@@ -151,7 +209,7 @@ export const LibraryPage = () => {
           <p className="font-serif text-[20px] font-semibold">{t('library.empty')}</p>
           <p className="text-[15px] text-muted">{t('library.emptyHint')}</p>
         </div>
-      ) : (
+      ) : view === 'grid' ? (
         <div className="grid grid-cols-2 gap-x-[18px] gap-y-[22px] px-5 pt-[18px] md:grid-cols-6 md:gap-x-7 md:gap-y-8 md:px-10">
           {filtered.map((book) => (
             <BookCard
@@ -161,12 +219,45 @@ export const LibraryPage = () => {
               onDelete={(id) => void remove(id)}
               onToggleShared={(shared) => void handleToggleShared(book.id, shared)}
               highlighted={highlightId === book.id}
+              selectable={selectMode}
+              selected={selectedIds.has(book.id)}
+              onToggleSelect={() => toggleSelect(book.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col px-5 pt-[18px] md:px-10">
+          {filtered.map((book) => (
+            <BookCard
+              key={book.id}
+              book={book}
+              size={isDesktop ? 'desktop' : 'mobile'}
+              layout="list"
+              onDelete={(id) => void remove(id)}
+              onToggleShared={(shared) => void handleToggleShared(book.id, shared)}
+              highlighted={highlightId === book.id}
+              selectable={selectMode}
+              selected={selectedIds.has(book.id)}
+              onToggleSelect={() => toggleSelect(book.id)}
             />
           ))}
         </div>
       )}
 
+      {selectMode ? <div className="h-20" /> : null}
       {toast}
+      {selectMode ? (
+        <BulkActionBar
+          count={selectedIds.size}
+          allSelected={allSelected}
+          onSelectAll={() => setSelectedIds(new Set(filtered.map((b) => b.id)))}
+          onSelectNone={() => setSelectedIds(new Set())}
+          onShare={() => void handleBulkShare(true)}
+          onUnshare={() => void handleBulkShare(false)}
+          onDelete={() => void handleBulkDelete()}
+          onDone={exitSelectMode}
+        />
+      ) : null}
     </AppShell>
   );
 };

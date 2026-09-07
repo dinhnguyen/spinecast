@@ -39,5 +39,17 @@ export const useBooks = () => {
     setBooks((prev) => prev.map((b) => (b.id === id ? updated : b)));
   }, []);
 
-  return { books, loading, error, reload, upload, remove, setShared };
+  const bulkRemove = useCallback(async (ids: string[]) => {
+    const res = await api.post<{ deleted: string[] }>('/api/books/bulk-delete', { ids });
+    setBooks((prev) => prev.filter((b) => !res.deleted.includes(b.id)));
+    return res.deleted;
+  }, []);
+
+  const bulkSetShared = useCallback(async (ids: string[], shared: boolean) => {
+    const res = await api.patch<{ items: BookDto[] }>('/api/books/bulk-share', { ids, shared });
+    setBooks((prev) => prev.map((b) => res.items.find((updated) => updated.id === b.id) ?? b));
+    return res.items;
+  }, []);
+
+  return { books, loading, error, reload, upload, remove, setShared, bulkRemove, bulkSetShared };
 };
