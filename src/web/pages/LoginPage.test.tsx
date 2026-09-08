@@ -17,9 +17,9 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 const ASSERTION = { id: 'cred-a', rawId: 'cred-a', type: 'public-key', clientExtensionResults: {}, response: {} };
 
-const mount = () =>
+const mount = (entries: Array<string | { pathname: string; state?: unknown }> = ['/login']) =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={entries}>
       <LocaleProvider initial="vi">
         <AuthProvider>
           <LoginPage />
@@ -90,5 +90,25 @@ describe('LoginPage passkey button', () => {
     await waitFor(() => expect(button()).toBeTruthy());
     fireEvent.click(button());
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Đăng nhập bằng passkey' })).toBeNull());
+  });
+});
+
+describe('LoginPage forgot line and disabled reason', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('shows the forgot-password line as plain text with no link', async () => {
+    routeFetch(json({}));
+    mount();
+    await waitFor(() => expect(screen.getByText('Quên mật khẩu? Liên hệ quản trị viên.')).toBeTruthy());
+    expect(screen.queryByRole('link', { name: /Quên/ })).toBeNull();
+  });
+
+  it('shows the disabled-account alert when routed here with that state', async () => {
+    routeFetch(json({}));
+    mount([{ pathname: '/login', state: { disabled: true } }]);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Tài khoản đã bị khoá'));
   });
 });

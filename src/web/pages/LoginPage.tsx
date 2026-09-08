@@ -13,10 +13,11 @@ export const LoginPage = () => {
   const { user, login, loginWithPasskey } = useAuth();
   const { t, locale, setLocale } = useLocale();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { from?: string } };
+  const location = useLocation() as { state?: { from?: string; disabled?: boolean } };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [disabled, setDisabled] = useState(location.state?.disabled ?? false);
   const [busy, setBusy] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const supportsPasskey = browserSupportsWebAuthn();
@@ -26,6 +27,7 @@ export const LoginPage = () => {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setDisabled(false);
     try {
       await login(email, password);
       navigate(location.state?.from ?? '/', { replace: true });
@@ -62,7 +64,7 @@ export const LoginPage = () => {
           <div className="flex flex-col gap-[18px] md:gap-4">
             <Field label={t('login.email')} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Field label={t('login.password')} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            {error ? <p role="alert" className="text-[14px] text-danger">{error}</p> : null}
+            {error || disabled ? <p role="alert" className="text-[14px] text-danger">{error ?? t('errors.account_disabled')}</p> : null}
             <Button type="submit" height={48} disabled={busy} className="md:!h-[46px]">{t('login.submit')}</Button>
             {supportsPasskey ? (
               <>
@@ -78,6 +80,7 @@ export const LoginPage = () => {
             ) : null}
           </div>
           <p className="text-center text-[14px] text-muted md:text-left">{t('login.haveInvite')} <Link to="/register" className="font-semibold">{t('login.register')}</Link></p>
+          <p className="text-center text-[13px] text-faint md:text-left">{t('login.forgot')}</p>
           <button
             type="button"
             onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')}

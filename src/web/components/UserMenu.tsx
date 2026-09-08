@@ -2,8 +2,9 @@ import { useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { useT } from '../i18n/LocaleProvider';
 import { useAuth } from '../lib/auth';
+import { ADMIN_NAV } from '../lib/adminNav';
 import { Icon } from '../lib/icons';
-import { settingsNavFor } from '../lib/settingsNav';
+import { settingsNav } from '../lib/settingsNav';
 import { BottomSheet } from './BottomSheet';
 
 interface UserMenuProps {
@@ -29,7 +30,8 @@ export const UserMenu = ({ open, onClose, variant }: UserMenuProps) => {
 
   if (!open) return null;
 
-  const rows = settingsNavFor(user?.role);
+  const rows = settingsNav();
+  const adminRows = user?.role === 'admin' ? ADMIN_NAV : [];
 
   const handleLogout = async () => {
     onClose();
@@ -39,9 +41,16 @@ export const UserMenu = ({ open, onClose, variant }: UserMenuProps) => {
 
   if (variant === 'mobile') {
     return (
-      <BottomSheet open onClose={onClose} title={user?.email} height={rows.length * 48 + 152}>
+      <BottomSheet open onClose={onClose} title={user?.email} height={(rows.length + adminRows.length) * 48 + 152 + (adminRows.length ? 12 : 0)}>
         <div className="flex flex-col">
           {rows.map((row) => (
+            <NavLink key={row.key} to={row.to} onClick={onClose} className="flex h-12 items-center justify-between border-b border-border text-[15px] text-ink">
+              <span>{t(row.labelKey)}</span>
+              <Icon name="chev" size={18} className="text-faint" />
+            </NavLink>
+          ))}
+          {adminRows.length > 0 && <div className="my-1.5 h-px bg-border" />}
+          {adminRows.map((row) => (
             <NavLink key={row.key} to={row.to} onClick={onClose} className="flex h-12 items-center justify-between border-b border-border text-[15px] text-ink">
               <span>{t(row.labelKey)}</span>
               <Icon name="chev" size={18} className="text-faint" />
@@ -60,6 +69,17 @@ export const UserMenu = ({ open, onClose, variant }: UserMenuProps) => {
     <div ref={ref} className="absolute right-0 top-11 z-30 flex w-[228px] flex-col rounded-lg border border-border bg-surface p-1.5 shadow-[0_8px_24px_rgba(42,37,31,.16)]">
       <span className="truncate px-2.5 pb-1.5 pt-1 text-[13px] text-muted">{user?.email}</span>
       {rows.map((row) => (
+        <NavLink
+          key={row.key}
+          to={row.to}
+          onClick={onClose}
+          className={({ isActive }) => `flex h-9 items-center rounded-[6px] px-2.5 text-[14px] ${isActive ? 'bg-accent-soft font-semibold text-accent-ink' : 'font-medium text-ink'}`}
+        >
+          {t(row.labelKey)}
+        </NavLink>
+      ))}
+      {adminRows.length > 0 && <span className="my-1.5 h-px bg-border" />}
+      {adminRows.map((row) => (
         <NavLink
           key={row.key}
           to={row.to}

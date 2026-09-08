@@ -20,10 +20,22 @@ export const markInviteUsed = async (db: D1Database, code: string, userId: strin
   await db.prepare('update invites set used_by = ? where code = ?').bind(userId, code).run();
 };
 
-export const listInvites = async (db: D1Database, createdBy: string): Promise<InviteRow[]> => {
+export type InviteWithUserRow = InviteRow & { used_by_email: string | null };
+
+export const listInvites = async (db: D1Database, createdBy: string): Promise<InviteWithUserRow[]> => {
   const res = await db
-    .prepare('select * from invites where created_by = ? order by created_at desc')
+    .prepare(
+      'select i.*, u.email as used_by_email from invites i left join users u on u.id = i.used_by where i.created_by = ? order by i.created_at desc',
+    )
     .bind(createdBy)
-    .all<InviteRow>();
+    .all<InviteWithUserRow>();
   return res.results;
+};
+
+export const revokeUnusedInvite = async (db: D1Database, createdBy: string, code: string): Promise<boolean> => {
+  const result = await db
+    .prepare('delete from invites where code = ? and created_by = ? and used_by is null')
+    .bind(code, createdBy)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
 };

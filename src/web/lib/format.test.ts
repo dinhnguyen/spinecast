@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDate, formatMinutes, formatRelative, syncBadgeFor } from './format';
+import { formatBytes, formatClock, formatDate, formatMinutes, formatRelative, syncBadgeFor } from './format';
 
 const now = Date.UTC(2026, 8, 4, 7, 2) / 1000;
 
@@ -45,6 +45,18 @@ describe('syncBadgeFor', () => {
     expect(syncBadgeFor({ ...base, lastOkAt: null, lastError: 'unauthorized: x' }, 'en').text).toBe('Sync login rejected');
     expect(syncBadgeFor({ ...base, lastOkAt: null, lastError: 'network: down' }, 'vi').state).toBe('warn');
     expect(syncBadgeFor({ ...base, lastOkAt: null, lastError: null }, 'en')).toEqual({ state: 'warn', text: 'Not synced' });
+  });
+});
+
+describe('formatBytes', () => {
+  it('formats bytes, KB, MB with one decimal per locale', () => {
+    expect(formatBytes(0, 'vi')).toBe('0 B');
+    expect(formatBytes(1536, 'en')).toBe('1.5 KB');
+    expect(formatBytes(36_000_000, 'vi')).toBe('34,3 MB');
+  });
+
+  it('promotes to the next unit when rounding a just-under-boundary value up to 1024', () => {
+    expect(formatBytes(Math.round(1024 * 1023.97), 'en')).toBe('1 MB');
   });
 });
 

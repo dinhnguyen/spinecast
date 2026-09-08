@@ -8,6 +8,7 @@ interface UseOpdsTokensResult {
   loadError: unknown;
   reload: () => Promise<void>;
   create: (scope: OpdsScope) => Promise<OpdsTokenCreatedDto>;
+  reveal: (scope: OpdsScope) => Promise<OpdsTokenCreatedDto>;
   revoke: (scope: OpdsScope) => Promise<void>;
 }
 
@@ -45,6 +46,8 @@ export const useOpdsTokens = (): UseOpdsTokensResult => {
     [reload],
   );
 
+  const reveal = useCallback((scope: OpdsScope): Promise<OpdsTokenCreatedDto> => api.get<OpdsTokenCreatedDto>(`/api/opds/tokens/${scope}/reveal`), []);
+
   const revoke = useCallback(
     async (scope: OpdsScope) => {
       await api.del(`/api/opds/tokens/${scope}`);
@@ -53,5 +56,5 @@ export const useOpdsTokens = (): UseOpdsTokensResult => {
     [reload],
   );
 
-  return { tokens, loading, loadError, reload, create, revoke };
+  return { tokens, loading, loadError, reload, create, reveal, revoke };
 };

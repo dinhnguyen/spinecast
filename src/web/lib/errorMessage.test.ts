@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Translate } from '../i18n/LocaleProvider';
 import { translate } from '../i18n/messages';
 import { ApiClientError } from './api';
 import { describeError } from './errorMessage';
@@ -16,4 +17,12 @@ describe('describeError', () => {
     expect(describeError(new ApiClientError(418, 'teapot', 'x'), tEn)).toBe('Unexpected error');
     expect(describeError(new TypeError('failed to fetch'), tEn)).toBe('Could not connect');
   });
+
+  it.each(['account_disabled', 'self_action', 'reset_invalid', 'reset_expired', 'invite_used'])(
+    'translates %s',
+    (code) => {
+      const err = new ApiClientError(400, code, 'server detail');
+      expect(describeError(err, (key => key) as Translate)).toBe(`errors.${code}`);
+    },
+  );
 });

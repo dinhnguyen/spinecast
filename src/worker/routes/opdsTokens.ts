@@ -5,13 +5,14 @@ import { ApiError } from '../errors';
 import { countSharedBooks } from '../db/opdsBooks';
 import { deleteOpdsToken, findOpdsToken, isOpdsScope, upsertOpdsToken, type OpdsTokenRow } from '../db/opdsTokens';
 import { requireAuth } from '../middleware/requireAuth';
+import { decryptString, encryptString } from '../services/crypto';
 import { generateOpdsToken, hashOpdsToken } from '../services/opdsToken';
 
 export const opdsTokenRoutes = new Hono<AppEnv>();
 opdsTokenRoutes.use('*', requireAuth);
 
 const toDto = (row: OpdsTokenRow | null): OpdsTokenDto | null =>
-  row ? { createdAt: row.created_at, lastUsedAt: row.last_used_at } : null;
+  row ? { createdAt: row.created_at, lastUsedAt: row.last_used_at, revealable: row.token_enc !== null } : null;
 
 const scopeParam = (raw: string): OpdsScope => {
   if (!isOpdsScope(raw)) throw new ApiError(404, 'not_found', 'unknown scope');
@@ -31,9 +32,19 @@ opdsTokenRoutes.get('/', async (c) => {
 opdsTokenRoutes.post('/:scope', async (c) => {
   const scope = scopeParam(c.req.param('scope'));
   const token = generateOpdsToken();
-  await upsertOpdsToken(c.env.DB, c.var.user.id, scope, await hashOpdsToken(token), Math.floor(Date.now() / 1000));
+  const [hash, enc] = await Promise.all([hashOpdsToken(token), encryptString(token, c.env.SYNC_ENC_KEY)]);
+  await upsertOpdsToken(c.env.DB, c.var.user.id, scope, hash, enc, Math.floor(Date.now() / 1000));
   const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/opds/${c.var.user.id}/${scope}` };
   return c.json(dto, 201);
+});
+
+opdsTokenRoutes.get('/:scope/reveal', async (c) => {
+  const scope = scopeParam(c.req.param('scope'));
+  const row = await findOpdsToken(c.env.DB, c.var.user.id, scope);
+  if (!row || !row.token_enc) throw new ApiError(404, 'not_found', 'no token to reveal');
+  const token = await decryptString(row.token_enc, c.env.SYNC_ENC_KEY);
+  const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/opds/${c.var.user.id}/${scope}` };
+  return c.json(dto);
 });
 
 opdsTokenRoutes.delete('/:scope', async (c) => {

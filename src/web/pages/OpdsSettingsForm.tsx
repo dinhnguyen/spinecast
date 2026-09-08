@@ -12,7 +12,7 @@ import { catalogUrl } from '../lib/opds';
 export const OpdsSettingsForm = () => {
   const { user } = useAuth();
   const { t, tn, locale } = useLocale();
-  const { tokens, loading, loadError, create, revoke } = useOpdsTokens();
+  const { tokens, loading, loadError, create, reveal, revoke } = useOpdsTokens();
   const { toast, show } = useToast();
   const [revealed, setRevealed] = useState<Partial<Record<OpdsScope, string>>>({});
   const [busyScope, setBusyScope] = useState<OpdsScope | null>(null);
@@ -27,6 +27,19 @@ export const OpdsSettingsForm = () => {
     try {
       const created = await create(scope);
       setRevealed((prev) => ({ ...prev, [scope]: created.token }));
+    } catch (err) {
+      setActionError(describeError(err, t));
+    } finally {
+      setBusyScope(null);
+    }
+  };
+
+  const onReveal = async (scope: OpdsScope) => {
+    setActionError(null);
+    setBusyScope(scope);
+    try {
+      const revealedToken = await reveal(scope);
+      setRevealed((prev) => ({ ...prev, [scope]: revealedToken.token }));
     } catch (err) {
       setActionError(describeError(err, t));
     } finally {
@@ -90,6 +103,7 @@ export const OpdsSettingsForm = () => {
             t={t}
             locale={locale}
             onCreate={(scope) => (tokens?.[scope] ? setPending({ scope, kind: 'regenerate' }) : void onCreate(scope))}
+            onReveal={(scope) => void onReveal(scope)}
             onRevoke={(scope) => setPending({ scope, kind: 'revoke' })}
             onCopy={(text) => void onCopy(text)}
           />
@@ -114,6 +128,7 @@ export const OpdsSettingsForm = () => {
             t={t}
             locale={locale}
             onCreate={(scope) => (tokens?.[scope] ? setPending({ scope, kind: 'regenerate' }) : void onCreate(scope))}
+            onReveal={(scope) => void onReveal(scope)}
             onRevoke={(scope) => setPending({ scope, kind: 'revoke' })}
             onCopy={(text) => void onCopy(text)}
           />

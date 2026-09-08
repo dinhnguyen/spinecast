@@ -17,16 +17,21 @@ export class ApiClientError extends Error {
 // empty library reads as "you own no books" to a logged-out user).
 export const UNAUTHORIZED_EVENT = 'spinecast:unauthorized';
 
+// Fired whenever the API says the account is disabled, regardless of status or
+// path, so the login page can show why the session just disappeared.
+export const ACCOUNT_DISABLED_EVENT = 'spinecast:account-disabled';
+
 const parse = async <T>(res: Response, path: string): Promise<T> => {
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? (JSON.parse(text) as unknown) : null;
   if (!res.ok) {
+    const err = (body as { error?: { code?: string; message?: string; bookId?: string } } | null)?.error;
+    if (err?.code === 'account_disabled') window.dispatchEvent(new CustomEvent(ACCOUNT_DISABLED_EVENT));
     // The auth endpoints answer 401 by design (no session yet, wrong password)
     // and are what the listener itself calls, so they are excluded to avoid a
     // re-check loop.
     if (res.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
-    const err = (body as { error?: { code?: string; message?: string; bookId?: string } } | null)?.error;
     throw new ApiClientError(res.status, err?.code ?? 'http_error', err?.message ?? `HTTP ${res.status}`, err?.bookId);
   }
   return body as T;

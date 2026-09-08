@@ -4,16 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider, useLocale } from '../i18n/LocaleProvider';
 import { STORAGE_KEY } from '../i18n/locale';
 import { AuthProvider, RequireAuth, useAuth } from './auth';
+import { api } from './api';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const Probe = () => {
   const { locale } = useLocale();
-  const { user, updateLocale } = useAuth();
+  const { user, updateLocale, disabledReason } = useAuth();
   return (
     <div>
       <span data-testid="locale">{locale}</span>
       <span data-testid="user">{user?.email ?? ''}</span>
+      <span data-testid="disabled">{disabledReason ? 'yes' : 'no'}</span>
       <button type="button" onClick={() => updateLocale('en').catch(() => undefined)}>en</button>
     </div>
   );
@@ -47,6 +49,19 @@ describe('AuthProvider locale sync', () => {
       expect(screen.getByTestId('locale').textContent).toBe('en');
     });
     expect(localStorage.getItem(STORAGE_KEY)).toBe('en');
+  });
+
+  it('clears the user and records the disabled reason on account_disabled', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ id: 'u', email: 'a@b.c', role: 'user', locale: 'vi' }))
+      .mockResolvedValueOnce(json({}))
+      .mockResolvedValueOnce(json({ error: { code: 'account_disabled', message: 'x' } }, 401))
+      .mockResolvedValueOnce(json({ error: { code: 'account_disabled', message: 'x' } }, 401));
+    mount();
+    await waitFor(() => expect(screen.getByTestId('user').textContent).toBe('a@b.c'));
+    await act(() => api.get('/api/books').catch(() => undefined));
+    await waitFor(() => expect(screen.getByTestId('user').textContent).toBe(''));
+    expect(screen.getByTestId('disabled').textContent).toBe('yes');
   });
 
   it('updateLocale switches immediately and PATCHes', async () => {

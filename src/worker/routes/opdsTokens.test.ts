@@ -20,11 +20,32 @@ describe('opds token routes', () => {
     const dto = await listed.json();
     expect(dto.library.createdAt).toBeGreaterThan(0);
     expect(dto.library.lastUsedAt).toBeNull();
+    expect(dto.library.revealable).toBe(true);
     expect(dto.public).toBeNull();
     expect(JSON.stringify(dto)).not.toContain(body.token);
 
     const feed = await app.request(`http://localhost/opds/${user.id}/library`, { headers: basicAuth(body.token) }, env);
     expect(feed.status).toBe(200);
+  });
+
+  it('reveals a previously created token again, without changing or invalidating it', async () => {
+    const { user, cookie } = await createUserAndLogin(env);
+    const created = await (await app.request(...jsonRequest('/api/opds/tokens/library', 'POST', undefined, cookie), env)).json();
+
+    const revealed = await app.request(...jsonRequest('/api/opds/tokens/library/reveal', 'GET', undefined, cookie), env);
+    expect(revealed.status).toBe(200);
+    const revealedBody = await revealed.json();
+    expect(revealedBody).toEqual({ scope: 'library', token: created.token, url: created.url });
+
+    const feed = await app.request(`http://localhost/opds/${user.id}/library`, { headers: basicAuth(created.token) }, env);
+    expect(feed.status).toBe(200);
+  });
+
+  it('rejects reveal for a scope with no token, an unknown scope, and an anonymous caller', async () => {
+    const { cookie } = await createUserAndLogin(env);
+    expect((await app.request(...jsonRequest('/api/opds/tokens/library/reveal', 'GET', undefined, cookie), env)).status).toBe(404);
+    expect((await app.request(...jsonRequest('/api/opds/tokens/other/reveal', 'GET', undefined, cookie), env)).status).toBe(404);
+    expect((await app.request(...jsonRequest('/api/opds/tokens/library/reveal', 'GET'), env)).status).toBe(401);
   });
 
   it('regenerating invalidates the old token and revoking removes access', async () => {

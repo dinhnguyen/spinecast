@@ -15,6 +15,7 @@ import { opdsRoutes } from './opds/routes';
 import { opdsCatalogRoutes } from './routes/opdsCatalogs';
 import { opdsTokenRoutes } from './routes/opdsTokens';
 import { passkeyRoutes } from './routes/passkeys';
+import { adminRoutes } from './routes/admin';
 
 export type { AppEnv };
 
@@ -35,6 +36,7 @@ app.route('/api/opds/catalogs', opdsCatalogRoutes);
 app.route('/api/opds/tokens', opdsTokenRoutes);
 app.route('/api/devices', deviceRoutes);
 app.route('/api/passkeys', passkeyRoutes);
+app.route('/api/admin', adminRoutes);
 app.route('/opds/:userId/:scope', opdsRoutes);
 
 app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));

@@ -7,26 +7,30 @@ import { findInvite, markInviteUsed } from '../db/invites';
 import { findUserByEmail, findUserById, insertUser, updateUserLocale, updateUserTimezoneIfUnset } from '../db/users';
 import { findDevice, insertDevice, pruneDevices, touchDevice } from '../db/devices';
 import { findPasskeyById, touchPasskey } from '../db/passkeys';
+import { consumePasswordReset, findPasswordReset } from '../db/passwordResets';
 import { putChallenge, takeChallenge } from '../services/challenge';
 import { authenticationOptions, verifyAuthentication } from '../services/webauthn';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { deviceNameFromUserAgent } from '../services/deviceName';
-import { hashPassword, randomHex, verifyPassword } from '../services/crypto';
+import { hashPassword, randomHex, sha256Hex, verifyPassword } from '../services/crypto';
 import { isValidTimeZone } from '../services/localTime';
 import { checkRateLimit } from '../services/rateLimit';
 import { createSession, deleteSession } from '../services/session';
 import { requireAuth, SESSION_COOKIE } from '../middleware/requireAuth';
-import { LOCALES, type Locale, type UpdateMeInput, type UserDto } from '../../shared/apiTypes';
+import { LOCALES, type Locale, type ResetPasswordInput, type UpdateMeInput, type UserDto } from '../../shared/apiTypes';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
 
 const readJson = async <T>(c: { req: { json: () => Promise<unknown> } }): Promise<Partial<T>> => {
+  let body: unknown;
   try {
-    return (await c.req.json()) as Partial<T>;
+    body = await c.req.json();
   } catch {
     throw new ApiError(400, 'validation', 'body must be JSON');
   }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'validation', 'body must be JSON');
+  return body as Partial<T>;
 };
 
 const validateCredentials = (email: unknown, password: unknown): { email: string; password: string } => {
@@ -78,11 +82,11 @@ const newDevice = async (c: { env: AppEnv['Bindings']; req: { header: (n: string
 
 const startSession = async (
   c: Context<AppEnv>,
-  user: { id: string; email: string; role: 'admin' | 'user'; locale: Locale },
+  user: { id: string; email: string; role: 'admin' | 'user'; locale: Locale; session_epoch: number },
   now: number,
 ): Promise<UserDto> => {
   const deviceId = await newDevice(c, user.id, now);
-  const token = await createSession(c.env, user.id, deviceId);
+  const token = await createSession(c.env, user.id, deviceId, user.session_epoch);
   setSessionCookie(c, token, Number(c.env.SESSION_TTL_SECONDS));
   return { id: user.id, email: user.email, role: user.role, locale: user.locale, deviceId };
 };
@@ -102,7 +106,7 @@ authRoutes.post('/register', async (c) => {
   const locale: Locale = isLocale(body.locale) ? body.locale : 'vi';
   await insertUser(c.env.DB, { id, email, password_hash: await hashPassword(password), role: 'user', locale, created_at: now });
   await markInviteUsed(c.env.DB, invite.code, id);
-  const dto = await startSession(c, { id, email, role: 'user', locale }, now);
+  const dto = await startSession(c, { id, email, role: 'user', locale, session_epoch: 0 }, now);
   return c.json(dto, 201);
 });
 
@@ -117,6 +121,7 @@ authRoutes.post('/login', async (c) => {
   const user = await findUserByEmail(c.env.DB, body.email);
   if (!user || !(await verifyPassword(body.password, user.password_hash)))
     throw new ApiError(401, 'invalid_credentials', 'invalid credentials');
+  if (user.disabled_at !== null) throw new ApiError(403, 'account_disabled', 'account disabled');
   const dto = await startSession(c, user, Math.floor(Date.now() / 1000));
   return c.json(dto);
 });
@@ -184,7 +189,29 @@ authRoutes.post('/passkey/verify', async (c) => {
 
   const user = await findUserById(c.env.DB, row.user_id);
   if (!user) throw new ApiError(401, 'invalid_credentials', 'invalid credentials');
+  if (user.disabled_at !== null) throw new ApiError(403, 'account_disabled', 'account disabled');
   const now = Math.floor(Date.now() / 1000);
   await touchPasskey(c.env.DB, row.id, newCounter, now);
   return c.json(await startSession(c, user, now));
+});
+
+authRoutes.post('/reset', async (c) => {
+  const ip = c.req.header('cf-connecting-ip') ?? 'local';
+  if (!(await checkRateLimit(c.env.SESSIONS, `reset:${ip}`, 10, 900)))
+    throw new ApiError(429, 'rate_limited', 'too many attempts');
+  const body = await readJson<ResetPasswordInput>(c);
+  if (typeof body.code !== 'string' || !body.code) throw new ApiError(400, 'reset_invalid', 'invalid reset code');
+  const codeHash = await sha256Hex(body.code);
+  const row = await findPasswordReset(c.env.DB, codeHash);
+  const now = Math.floor(Date.now() / 1000);
+  if (!row || row.used_at !== null) throw new ApiError(400, 'reset_invalid', 'invalid reset code');
+  if (row.expires_at <= now) throw new ApiError(400, 'reset_expired', 'reset code expired');
+  const owner = await findUserById(c.env.DB, row.user_id);
+  if (!owner) throw new ApiError(400, 'reset_invalid', 'invalid reset code');
+  if (owner.disabled_at !== null) throw new ApiError(403, 'account_disabled', 'account disabled');
+  const { password } = validateCredentials(owner.email, body.password);
+  const user = await consumePasswordReset(c.env.DB, codeHash, await hashPassword(password), Math.floor(Date.now() / 1000));
+  if (!user) throw new ApiError(400, 'reset_invalid', 'invalid reset code');
+  c.header('Cache-Control', 'no-store');
+  return c.json(await startSession(c, user, Math.floor(Date.now() / 1000)));
 });

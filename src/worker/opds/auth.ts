@@ -2,6 +2,7 @@ import { createMiddleware } from 'hono/factory';
 import type { OpdsScope } from '../../shared/apiTypes';
 import type { Env } from '../env';
 import { findOpdsToken, isOpdsScope, touchOpdsToken } from '../db/opdsTokens';
+import { findUserById } from '../db/users';
 import { hashOpdsToken } from '../services/opdsToken';
 import { checkRateLimit } from '../services/rateLimit';
 
@@ -56,6 +57,9 @@ export const opdsAuth = createMiddleware<OpdsEnv>(async (c, next) => {
     await checkRateLimit(c.env.SESSIONS, rateKey, OPDS_RATE_LIMIT, OPDS_RATE_WINDOW);
     return unauthorized();
   }
+
+  const user = await findUserById(c.env.DB, userId);
+  if (!user || user.disabled_at !== null) return unauthorized();
 
   const now = Math.floor(Date.now() / 1000);
   if (row.last_used_at === null || now - row.last_used_at >= OPDS_TOUCH_INTERVAL) await touchOpdsToken(c.env.DB, userId, scope, now);

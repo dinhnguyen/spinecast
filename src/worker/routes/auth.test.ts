@@ -66,6 +66,15 @@ describe('auth', () => {
     expect((await res.json()).error.code).toBe('invalid_credentials');
   });
 
+  it('rejects a correct password for a disabled account without setting a cookie', async () => {
+    const user = await createUser(env, { password: 'pw-123456' });
+    await env.DB.prepare('update users set disabled_at = 1 where id = ?').bind(user.id).run();
+    const res = await app.request(...jsonRequest('/api/auth/login', 'POST', { email: user.email, password: 'pw-123456' }), env);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe('account_disabled');
+    expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
   it('returns the current user on /me and 401 without a cookie', async () => {
     const { user, cookie } = await createUserAndLogin(env);
     const ok = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, cookie), env);
@@ -73,6 +82,18 @@ describe('auth', () => {
     expect((await ok.json()).email).toBe(user.email);
     const anon = await app.request('/api/auth/me', {}, env);
     expect(anon.status).toBe(401);
+  });
+
+  it('rejects a live cookie when disabled, and an old epoch after unlock', async () => {
+    const { user, cookie } = await createUserAndLogin(env);
+    await env.DB.prepare('update users set disabled_at = 1, session_epoch = 1 where id = ?').bind(user.id).run();
+    const locked = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, cookie), env);
+    expect(locked.status).toBe(401);
+    expect((await locked.json()).error.code).toBe('account_disabled');
+    await env.DB.prepare('update users set disabled_at = null where id = ?').bind(user.id).run();
+    const stale = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, cookie), env);
+    expect(stale.status).toBe(401);
+    expect((await stale.json()).error.code).toBe('unauthorized');
   });
 
   it('logs out and invalidates the session', async () => {

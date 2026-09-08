@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../appEnv';
 import { ApiError } from '../errors';
-import { deleteBook, deleteBookAndCountBlobHash, findBook, findBookWithProgress, listBooksWithProgress, setBookShared, type BookRow } from '../db/books';
-import { deleteBlob } from '../db/bookBlobs';
+import { findBook, findBookWithProgress, listBooksWithProgress, setBookShared } from '../db/books';
 import { requireAuth } from '../middleware/requireAuth';
+import { deleteBookAndBlob } from '../services/deleteBook';
 import { EpubParseError } from '../services/epub';
 import { ingestBook } from '../services/ingestBook';
 
@@ -33,20 +33,6 @@ bookRoutes.post('/upload', async (c) => {
 });
 
 bookRoutes.get('/', async (c) => c.json({ items: await listBooksWithProgress(c.env.DB, c.var.user.id) }));
-
-// Shared by the single-item and bulk delete routes: a book carrying a blob_hash only
-// frees its R2 object once no other book still references that blob (dedup, see
-// ingestBook); a legacy row (blob_hash null) deletes exactly as it always did.
-const deleteBookAndBlob = async (db: D1Database, bucket: R2Bucket, book: BookRow): Promise<void> => {
-  if (book.blob_hash) {
-    await deleteBookAndCountBlobHash(db, book.id, book.blob_hash);
-    if (await deleteBlob(db, book.blob_hash)) await bucket.delete(book.r2_key);
-  } else {
-    await deleteBook(db, book.id);
-    await bucket.delete(book.r2_key);
-  }
-  if (book.cover_r2_key) await bucket.delete(book.cover_r2_key);
-};
 
 const parseIds = (body: unknown): string[] => {
   const ids = (body as { ids?: unknown } | null)?.ids;

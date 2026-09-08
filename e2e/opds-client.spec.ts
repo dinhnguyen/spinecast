@@ -64,7 +64,7 @@ test('a reader adds another user public catalog as a source and downloads a book
   await page.getByText('All Books').click();
   await expect(page.getByText('Minimal Book')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Tải về' }).click();
+  await page.getByRole('button', { name: 'Thêm' }).click();
   await expect(page.getByText('Đã có')).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole('link', { name: 'Thư viện' }).click();

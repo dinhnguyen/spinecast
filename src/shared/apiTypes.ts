@@ -25,6 +25,11 @@ export type ApiErrorCode =
   | 'catalog_unreachable'
   | 'not_opds'
   | 'bad_feed'
+  | 'account_disabled'
+  | 'self_action'
+  | 'reset_invalid'
+  | 'reset_expired'
+  | 'invite_used'
   | `sync_${string}`;
 
 export interface UserDto {
@@ -34,6 +39,26 @@ export interface UserDto {
   locale: Locale;
   deviceId: string | null;
 }
+
+export interface AdminUserDto {
+  id: string; email: string; role: 'admin' | 'user';
+  createdAt: number; disabledAt: number | null;
+  bookCount: number; bytesUsed: number; passkeyCount: number;
+  lastSeenAt: number | null;
+}
+
+export type AdminUserPatch = { role: 'admin' | 'user' } | { disabled: boolean };
+
+export interface AdminOverviewDto {
+  users: number; books: number; blobs: number; blobBytes: number;
+  orphanBlobRows: number; orphanObjects: number;
+}
+
+export interface AdminCleanupDto { deletedRows: number; deletedObjects: number }
+
+export interface ResetCodeDto { code: string; expiresAt: number }
+
+export interface ResetPasswordInput { code: string; password: string }
 
 export interface UpdateMeInput {
   locale?: Locale;
@@ -48,6 +73,7 @@ export interface InviteDto {
   code: string;
   expiresAt: number;
   usedBy: string | null;
+  usedByEmail: string | null;
   createdAt: number;
 }
 
@@ -140,6 +166,7 @@ export type OpdsScope = 'library' | 'public';
 export interface OpdsTokenDto {
   createdAt: number;
   lastUsedAt: number | null;
+  revealable: boolean;
 }
 
 export interface OpdsTokensDto {

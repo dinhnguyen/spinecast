@@ -1,5 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import { createUser } from '../../../test/helpers';
+import { findUserById } from './users';
 
 const EXPECTED = [
   'users', 'invites', 'books', 'sync_settings', 'reading_progress',
@@ -130,5 +132,33 @@ describe('book blobs schema', () => {
     const blobHash = cols.results.find((c) => c.name === 'blob_hash');
     expect(blobHash).toBeDefined();
     expect(blobHash!.notnull).toBe(0);
+  });
+});
+
+describe('opds token encryption schema', () => {
+  it('adds a nullable opds_tokens.token_enc', async () => {
+    const cols = await env.DB.prepare('pragma table_info(opds_tokens)').all<{ name: string; notnull: number }>();
+    const tokenEnc = cols.results.find((c) => c.name === 'token_enc');
+    expect(tokenEnc).toBeDefined();
+    expect(tokenEnc!.notnull).toBe(0);
+  });
+});
+
+describe('admin schema', () => {
+  it('defaults an existing-style new user to enabled epoch zero', async () => {
+    const u = await createUser(env);
+    expect(await findUserById(env.DB, u.id)).toMatchObject({ disabled_at: null, session_epoch: 0 });
+  });
+
+  it('creates reset columns and a cascading target FK', async () => {
+    const columns = await env.DB.prepare('pragma table_info(password_resets)').all<{ name: string }>();
+    expect(columns.results.map(x => x.name).sort()).toEqual(
+      ['code_hash', 'created_at', 'created_by', 'expires_at', 'used_at', 'user_id']);
+    const fks = await env.DB.prepare('pragma foreign_key_list(password_resets)')
+      .all<{ from: string; table: string; on_delete: string }>();
+    expect(fks.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: 'user_id', table: 'users', on_delete: 'CASCADE' }),
+      expect.objectContaining({ from: 'created_by', table: 'users', on_delete: 'NO ACTION' }),
+    ]));
   });
 });

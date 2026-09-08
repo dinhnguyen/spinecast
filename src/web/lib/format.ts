@@ -25,6 +25,26 @@ export const formatPercent = (pctQ: number): string => `${Math.round(pctQ / 10_0
 
 export const formatNumber = (n: number, locale: Locale): string => new Intl.NumberFormat(locale).format(n);
 
+export const formatBytes = (n: number, locale: Locale): string => {
+  if (n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = n / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  // The bucket above picks a unit off the raw value, but rounding to one decimal
+  // can then push a value like 1023.97 up to 1024 - display that in the next
+  // unit up (1.0 MB) rather than as "1,024.0 KB".
+  let rounded = Math.round(value * 10) / 10;
+  if (rounded >= 1024 && unit < units.length - 1) {
+    unit++;
+    rounded = Math.round((rounded / 1024) * 10) / 10;
+  }
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(rounded)} ${units[unit]}`;
+};
+
 export const formatDuration = (totalSeconds: number, locale: Locale): string => {
   const s = Math.max(0, Math.round(totalSeconds));
   const hours = Math.floor(s / 3600);

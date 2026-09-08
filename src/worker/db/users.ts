@@ -8,6 +8,8 @@ export interface UserRow {
   locale: Locale;
   created_at: number;
   timezone: string;
+  disabled_at: number | null;
+  session_epoch: number;
 }
 
 export const findUserByEmail = (db: D1Database, email: string): Promise<UserRow | null> =>
@@ -16,7 +18,10 @@ export const findUserByEmail = (db: D1Database, email: string): Promise<UserRow 
 export const findUserById = (db: D1Database, id: string): Promise<UserRow | null> =>
   db.prepare('select * from users where id = ?').bind(id).first<UserRow>();
 
-export const insertUser = async (db: D1Database, row: Omit<UserRow, 'timezone'>): Promise<void> => {
+export const insertUser = async (
+  db: D1Database,
+  row: Omit<UserRow, 'timezone' | 'disabled_at' | 'session_epoch'>,
+): Promise<void> => {
   await db
     .prepare('insert into users (id, email, password_hash, role, locale, created_at) values (?, ?, ?, ?, ?, ?)')
     .bind(row.id, row.email.toLowerCase(), row.password_hash, row.role, row.locale, row.created_at)

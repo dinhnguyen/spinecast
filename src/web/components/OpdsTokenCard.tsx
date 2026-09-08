@@ -18,11 +18,12 @@ interface OpdsTokenCardProps {
   t: Translate;
   locale: Locale;
   onCreate: (scope: OpdsScope) => void;
+  onReveal: (scope: OpdsScope) => void;
   onRevoke: (scope: OpdsScope) => void;
   onCopy: (text: string) => void;
 }
 
-export const OpdsTokenCard = ({ scope, title, description, url, token, revealed, shareLink, busy, t, locale, onCreate, onRevoke, onCopy }: OpdsTokenCardProps) => (
+export const OpdsTokenCard = ({ scope, title, description, url, token, revealed, shareLink, busy, t, locale, onCreate, onReveal, onRevoke, onCopy }: OpdsTokenCardProps) => (
   <section className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-[18px]">
     <div className="flex flex-col gap-[3px]">
       <h2 className="text-[16px] font-semibold">{title}</h2>
@@ -67,6 +68,11 @@ export const OpdsTokenCard = ({ scope, title, description, url, token, revealed,
       </span>
       {token ? (
         <div className="flex gap-2.5">
+          {!revealed && token.revealable ? (
+            <Button kind="surface" icon="eye" height={44} className="md:!h-[40px]" disabled={busy} onClick={() => onReveal(scope)}>
+              {t('settings.opds.reveal')}
+            </Button>
+          ) : null}
           <Button kind="surface" icon="sync" height={44} className="md:!h-[40px]" disabled={busy} onClick={() => onCreate(scope)}>
             {t('settings.opds.regenerate')}
           </Button>

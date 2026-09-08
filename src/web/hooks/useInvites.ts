@@ -28,5 +28,10 @@ export const useInvites = () => {
     return invite;
   }, []);
 
-  return { invites, loading, reload, create };
+  const revoke = useCallback(async (code: string): Promise<void> => {
+    await api.del(`/api/invites/${code}`);
+    setInvites((prev) => prev.filter((i) => i.code !== code));
+  }, []);
+
+  return { invites, loading, reload, create, revoke };
 };

@@ -1,25 +1,22 @@
 import type { ReactNode } from 'react';
 import { NavLink, Navigate } from 'react-router';
 import { AppShell } from '../components/AppShell';
+import { SectionShell } from '../components/SectionShell';
 import { SyncBadge } from '../components/SyncBadge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useSyncSettings } from '../hooks/useSyncSettings';
 import { useLocale } from '../i18n/LocaleProvider';
-import { useAuth } from '../lib/auth';
 import { syncBadgeFor } from '../lib/format';
 import { Icon } from '../lib/icons';
-import { settingsNavFor, type SettingsSection } from '../lib/settingsNav';
+import { settingsNav, type SettingsSection } from '../lib/settingsNav';
 import type { MessageKey } from '../i18n/messages';
 import { AccountForm } from './AccountForm';
 import { DevicesForm } from './DevicesForm';
-import { InvitesForm } from './InvitesForm';
 import { OpdsSettingsForm } from './OpdsSettingsForm';
 import { PasskeysForm } from './PasskeysForm';
 import { SyncSettingsForm } from './SyncSettingsForm';
 
-const TITLE: Record<SettingsSection, MessageKey> = { sync: 'settings.sync', account: 'settings.account', invites: 'settings.invites', opds: 'settings.opds', devices: 'settings.devices', passkeys: 'settings.passkeys' };
-
-const SettingsIndexMobile = ({ rows, t }: { rows: ReturnType<typeof settingsNavFor>; t: (key: MessageKey) => string }) => (
+const SettingsIndexMobile = ({ rows, t }: { rows: ReturnType<typeof settingsNav>; t: (key: MessageKey) => string }) => (
   <div className="flex flex-col px-5 pt-safe-top">
     <h1 className="pb-5 font-serif text-[30px] font-semibold tracking-[-.01em]">{t('settings.title')}</h1>
     <div className="flex flex-col">
@@ -34,19 +31,17 @@ const SettingsIndexMobile = ({ rows, t }: { rows: ReturnType<typeof settingsNavF
 );
 
 export const SettingsPage = ({ section }: { section?: SettingsSection }) => {
-  const { user } = useAuth();
   const { t, locale } = useLocale();
   const { settings, save, test } = useSyncSettings();
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const rows = settingsNavFor(user?.role);
+  const rows = settingsNav();
 
   const renderSection = (s: SettingsSection): ReactNode => {
     if (s === 'sync') return <SyncSettingsForm settings={settings} save={save} test={test} />;
     if (s === 'account') return <AccountForm />;
     if (s === 'devices') return <DevicesForm />;
     if (s === 'passkeys') return <PasskeysForm />;
-    if (s === 'opds') return <OpdsSettingsForm />;
-    return <InvitesForm />;
+    return <OpdsSettingsForm />;
   };
 
   if (!section) {
@@ -61,34 +56,8 @@ export const SettingsPage = ({ section }: { section?: SettingsSection }) => {
   }
 
   return (
-    <AppShell syncBadge={<SyncBadge {...syncBadgeFor(settings, locale)} />}>
-      <div className="flex items-center gap-1.5 border-b border-border bg-surface px-5 pb-3.5 pt-safe-top md:hidden">
-        <NavLink to="/settings" aria-label={t('common.back')} className="-ml-3 flex h-11 w-11 items-center justify-center text-ink">
-          <Icon name="back" size={22} />
-        </NavLink>
-        <h1 className="font-serif text-[26px] font-semibold">{t(TITLE[section])}</h1>
-      </div>
-
-      <div className="hidden px-10 pt-9 md:block">
-        <h1 className="font-serif text-[34px] font-semibold tracking-[-.01em]">{t('settings.title')}</h1>
-      </div>
-
-      <div className="flex flex-col gap-5 px-5 pt-[18px] md:flex-row md:gap-12 md:px-10 md:pt-7">
-        <div className="hidden w-[240px] flex-col gap-0.5 md:flex">
-          {rows.map((n) => (
-            <NavLink
-              key={n.key}
-              to={n.to}
-              className={`flex h-10 items-center rounded-md px-3.5 text-[15px] ${
-                n.key === section ? 'bg-accent-soft font-semibold text-accent-ink' : 'font-medium text-ink'
-              }`}
-            >
-              {t(n.labelKey)}
-            </NavLink>
-          ))}
-        </div>
-        <div className="md:w-[620px]">{renderSection(section)}</div>
-      </div>
-    </AppShell>
+    <SectionShell title={t('settings.title')} backTo="/settings" rows={rows} active={section} syncBadge={<SyncBadge {...syncBadgeFor(settings, locale)} />}>
+      {renderSection(section)}
+    </SectionShell>
   );
 };

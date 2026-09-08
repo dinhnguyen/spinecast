@@ -1,7 +1,7 @@
 import type { Env } from '../src/worker/env';
 import type { BookDto, OpdsScope } from '../src/shared/apiTypes';
 import { app } from '../src/worker/app';
-import { hashPassword } from '../src/worker/services/crypto';
+import { encryptString, hashPassword } from '../src/worker/services/crypto';
 import { insertUser } from '../src/worker/db/users';
 import { listDevices } from '../src/worker/db/devices';
 import { randomHex } from '../src/worker/services/crypto';
@@ -75,7 +75,7 @@ export const uploadFixture = async (env: Env, cookie: string, filename = 'Minima
 
 export const createOpdsToken = async (env: Env, userId: string, scope: OpdsScope): Promise<string> => {
   const token = generateOpdsToken();
-  await upsertOpdsToken(env.DB, userId, scope, await hashOpdsToken(token), Math.floor(Date.now() / 1000));
+  await upsertOpdsToken(env.DB, userId, scope, await hashOpdsToken(token), await encryptString(token, env.SYNC_ENC_KEY), Math.floor(Date.now() / 1000));
   return token;
 };
 

@@ -15,6 +15,8 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   if (!session) throw new ApiError(401, 'unauthorized', 'session expired');
   const user = await findUserById(c.env.DB, session.userId);
   if (!user) throw new ApiError(401, 'unauthorized', 'user not found');
+  if (user.disabled_at !== null) throw new ApiError(401, 'account_disabled', 'account disabled');
+  if (session.epoch < user.session_epoch) throw new ApiError(401, 'unauthorized', 'session expired');
   // One primary-key lookup, next to the user lookup already here. A session whose
   // device row was deleted stays valid and simply carries no device.
   const device = session.deviceId ? await findDevice(c.env.DB, user.id, session.deviceId) : null;

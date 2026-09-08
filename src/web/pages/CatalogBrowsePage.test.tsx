@@ -57,7 +57,7 @@ describe('CatalogBrowsePage', () => {
     await waitFor(() => expect(screen.getByText('Dune')).toBeTruthy());
     expect(screen.getByText('Tất cả sách')).toBeTruthy();
     expect(screen.getByText('Đã có')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Tải về' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Thêm' })).toHaveLength(1);
     expect(screen.getByPlaceholderText('Tìm trong nguồn')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tải thêm' })).toBeTruthy();
   });
@@ -72,7 +72,7 @@ describe('CatalogBrowsePage', () => {
     });
     mount();
     await waitFor(() => expect(screen.getByText('Dune')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Tải về' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     await waitFor(() => expect(screen.getAllByText('Đã có')).toHaveLength(2));
   });
 
@@ -96,7 +96,7 @@ describe('CatalogBrowsePage', () => {
     });
     mount();
     await waitFor(() => expect(screen.getByText('Dune')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Tải về' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     await waitFor(() => expect(screen.getAllByText('Đã có')).toHaveLength(2));
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -161,7 +161,7 @@ describe('CatalogBrowsePage', () => {
     const textColumn = bookTitle.parentElement!;
     const bookRow = textColumn.parentElement!;
     const thumb = bookRow.firstElementChild!;
-    const action = screen.getByRole('button', { name: 'Tải về' });
+    const action = screen.getByRole('button', { name: 'Thêm' });
     expect(thumb).not.toBe(textColumn);
     expect(isBefore(thumb, textColumn)).toBe(true);
     expect(isBefore(textColumn, action)).toBe(true);

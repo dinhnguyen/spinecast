@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router';
 import { startAuthentication } from '@simplewebauthn/browser';
 import type { Locale, UpdateMeInput, UserDto } from '../../shared/apiTypes';
 import { useLocale } from '../i18n/LocaleProvider';
-import { api, ApiClientError, UNAUTHORIZED_EVENT } from './api';
+import { ACCOUNT_DISABLED_EVENT, api, ApiClientError, UNAUTHORIZED_EVENT } from './api';
 import { saveDeviceId } from './deviceId';
 
 // Derived from the function itself rather than imported, so this does not
@@ -19,6 +19,8 @@ interface AuthValue {
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   updateLocale: (locale: Locale) => Promise<void>;
+  disabledReason: boolean;
+  resetPassword: (code: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthValue | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [disabledReason, setDisabledReason] = useState(false);
   const { locale, setLocale } = useLocale();
 
   // Every path that produces a user records the device it was given, so the next
@@ -33,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const remember = useCallback((dto: UserDto) => {
     if (dto.deviceId) saveDeviceId(dto.deviceId);
     setUser(dto);
+    setDisabledReason(false);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -63,6 +67,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
   }, [refresh]);
 
+  // Fired alongside the 401 above on a disabled account; records the reason so
+  // the login page can explain why the session just disappeared.
+  useEffect(() => {
+    const onDisabled = () => {
+      setDisabledReason(true);
+      setUser(null);
+    };
+    window.addEventListener(ACCOUNT_DISABLED_EVENT, onDisabled);
+    return () => window.removeEventListener(ACCOUNT_DISABLED_EVENT, onDisabled);
+  }, []);
+
   useEffect(() => {
     if (user && user.locale !== locale) setLocale(user.locale);
     // Only the server value drives this; a local switch is handled by updateLocale.
@@ -73,6 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     () => ({
       user,
       loading,
+      disabledReason,
       refresh,
       login: async (email, password) => remember(await api.post<UserDto>('/api/auth/login', { email, password })),
       loginWithPasskey: async () => {
@@ -81,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         remember(await api.post<UserDto>('/api/auth/passkey/verify', { challengeId: started.challengeId, credential }));
       },
       register: async (email, password, invite) => remember(await api.post<UserDto>('/api/auth/register', { email, password, invite, locale })),
+      resetPassword: async (code, password) => remember(await api.post<UserDto>('/api/auth/reset', { code, password })),
       logout: async () => {
         await api.post('/api/auth/logout');
         setUser(null);
@@ -90,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(await api.patch<UserDto>('/api/auth/me', { locale: next } satisfies UpdateMeInput));
       },
     }),
-    [user, loading, refresh, remember, locale, setLocale],
+    [user, loading, disabledReason, refresh, remember, locale, setLocale],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
@@ -111,6 +128,6 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
 
 export const RequireAdmin = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <Navigate to="/settings/sync" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 };

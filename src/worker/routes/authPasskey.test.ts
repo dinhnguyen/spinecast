@@ -18,10 +18,15 @@ const enrol = async (cookie: string) => {
   return auth;
 };
 
-const loginWith = async (auth: Awaited<ReturnType<typeof createMockAuthenticator>>, counter = 0) => {
-  const started = await (await app.request(...jsonRequest('/api/auth/passkey/options', 'POST', {}), env)).json();
+const loginWith = async (auth: Awaited<ReturnType<typeof createMockAuthenticator>>, counter = 0, ip = 'local') => {
+  const headers = { 'cf-connecting-ip': ip };
+  const started = await (await app.request('/api/auth/passkey/options', { method: 'POST', headers, body: '{}' }, env)).json();
   const credential = await auth.assert({ ...RP, challenge: started.options.challenge, counter });
-  const res = await app.request(...jsonRequest('/api/auth/passkey/verify', 'POST', { challengeId: started.challengeId, credential }), env);
+  const res = await app.request(
+    '/api/auth/passkey/verify',
+    { method: 'POST', headers, body: JSON.stringify({ challengeId: started.challengeId, credential }) },
+    env,
+  );
   return { res, challengeId: started.challengeId, credential };
 };
 
@@ -43,6 +48,16 @@ describe('passkey login', () => {
     const sessionCookie = res.headers.get('set-cookie')!.split(';')[0]!;
     const me = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, sessionCookie), env);
     expect((await me.json()).id).toBe(user.id);
+  });
+
+  it('rejects a disabled passkey owner without setting a cookie', async () => {
+    const { user, cookie } = await createUserAndLogin(env, { password: PASSWORD });
+    const auth = await enrol(cookie);
+    await env.DB.prepare('update users set disabled_at = 1 where id = ?').bind(user.id).run();
+    const { res } = await loginWith(auth, 0, '198.51.100.10');
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe('account_disabled');
+    expect(res.headers.get('set-cookie')).toBeNull();
   });
 
   it('records the counter and the last use', async () => {

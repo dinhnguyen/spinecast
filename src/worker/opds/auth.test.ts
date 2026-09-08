@@ -17,7 +17,8 @@ testApp.get('/opds/:userId/:scope/ping', (c) => c.text(`${c.var.opdsUser}:${c.va
 const withToken = async (scope: 'library' | 'public' = 'library') => {
   const u = await createUser(env);
   const token = 'abcdefghijklmnopqrstuvwx';
-  await upsertOpdsToken(env.DB, u.id, scope, await hashOpdsToken(token), 1);
+  // opdsAuth only ever compares against token_hash, so token_enc is irrelevant here.
+  await upsertOpdsToken(env.DB, u.id, scope, await hashOpdsToken(token), '', 1);
   return { u, token };
 };
 
@@ -38,6 +39,14 @@ describe('opdsAuth', () => {
     const res = await testApp.request(`/opds/${u.id}/library/ping`, { headers: basic(token, 'anything') }, env);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(`${u.id}:library`);
+  });
+
+  it('rejects a valid token owned by a disabled user', async () => {
+    const { u, token } = await withToken();
+    await env.DB.prepare('update users set disabled_at = 1 where id = ?').bind(u.id).run();
+    const res = await testApp.request(`/opds/${u.id}/library/ping`, { headers: basic(token) }, env);
+    expect(res.status).toBe(401);
+    expect(res.headers.get('www-authenticate')).toBe('Basic realm="Spinecast"');
   });
 
   it('rejects wrong tokens, wrong scope and unknown users', async () => {
