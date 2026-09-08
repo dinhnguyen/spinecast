@@ -74,4 +74,53 @@ test.describe.serial('admin flow', () => {
     await expect(readerPage).toHaveURL('/');
     await readerContext.close();
   });
+
+  test('revoking a device logs it out; changing a password can sign out the others', async ({ page, browser }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'Mutates the same seeded account as the desktop project');
+    const readerContext = await browser.newContext();
+    const readerPage = await readerContext.newPage();
+    await login(readerPage, 'reader@dev.local', 'new-pass-987');
+    await expect(readerPage).toHaveURL('/');
+
+    await login(page, 'admin@dev.local', '123456');
+    await page.getByRole('button', { name: 'Tài khoản' }).click();
+    await page.getByRole('link', { name: 'Người dùng', exact: true }).click();
+    await page.getByRole('link', { name: 'reader@dev.local' }).click();
+    await expect(page).toHaveURL(/\/admin\/users\//);
+    await expect(page.getByRole('heading', { name: 'Thiết bị' })).toBeVisible();
+    const revokeButtons = page.getByRole('button', { name: /^Thu hồi / });
+    await expect(revokeButtons.first()).toBeVisible();
+    while (await revokeButtons.count()) {
+      const count = await revokeButtons.count();
+      await revokeButtons.first().click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Xoá' }).click();
+      await expect(revokeButtons).toHaveCount(count - 1);
+      await expect(page.getByText('Đã thu hồi')).toBeVisible();
+    }
+
+    await readerPage.goto('/stats');
+    await expect(readerPage).toHaveURL(/\/login/);
+
+    await login(readerPage, 'reader@dev.local', 'new-pass-987');
+    const thirdContext = await browser.newContext();
+    const thirdPage = await thirdContext.newPage();
+    await login(thirdPage, 'reader@dev.local', 'new-pass-987');
+    await expect(thirdPage).toHaveURL('/');
+
+    await readerPage.getByRole('button', { name: 'Tài khoản' }).click();
+    await readerPage.getByRole('link', { name: 'Tài khoản', exact: true }).click();
+    await readerPage.getByLabel('Mật khẩu hiện tại').fill('new-pass-987');
+    await readerPage.getByLabel('Mật khẩu mới', { exact: true }).fill('final-pass-555');
+    await readerPage.getByLabel('Nhập lại mật khẩu mới').fill('final-pass-555');
+    await readerPage.getByRole('button', { name: 'Đổi mật khẩu' }).click();
+    await expect(readerPage.getByText('Đã đổi mật khẩu')).toBeVisible();
+
+    await thirdPage.goto('/stats');
+    await expect(thirdPage).toHaveURL(/\/login/);
+    await readerPage.goto('/stats');
+    await expect(readerPage).toHaveURL('/stats');
+
+    await thirdContext.close();
+    await readerContext.close();
+  });
 });

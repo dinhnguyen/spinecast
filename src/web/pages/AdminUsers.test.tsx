@@ -57,6 +57,14 @@ describe('AdminUsers', () => {
     vi.restoreAllMocks();
   });
 
+  it('links each email to the user detail page', async () => {
+    stubMatchMedia(true);
+    mockFetch(() => null);
+    mount();
+    await screen.findByText('user2@x');
+    expect(screen.getByRole('link', { name: 'user2@x' }).getAttribute('href')).toBe('/admin/users/u2');
+  });
+
   it('renders three rows, the disabled badge once, and hides actions for the caller only', async () => {
     stubMatchMedia(true);
     mockFetch(() => null);

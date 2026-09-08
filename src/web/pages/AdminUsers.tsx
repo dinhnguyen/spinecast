@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import type { AdminUserDto } from '../../shared/apiTypes';
 import { Button } from '../components/Button';
 import { DeleteUserDialog } from '../components/DeleteUserDialog';
@@ -109,7 +110,7 @@ export const AdminUsers = () => {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="relative h-[52px] border-b border-border">
-                <td className="text-ink">{u.email}</td>
+                <td className="text-ink"><Link to={`/admin/users/${u.id}`} className="hover:underline">{u.email}</Link></td>
                 <td className="font-mono text-[13.5px] text-muted">{u.role === 'admin' ? t('admin.roleAdmin') : t('admin.roleUser')}</td>
                 <td className="font-mono text-[13.5px] text-muted">{u.bookCount}</td>
                 <td className="font-mono text-[13.5px] text-muted">{formatBytes(u.bytesUsed, locale)}</td>
@@ -139,7 +140,7 @@ export const AdminUsers = () => {
           {users.map((u) => (
             <div key={u.id} className="relative flex items-center justify-between gap-3 border-b border-border py-4">
               <div className="min-w-0">
-                <div className="break-words text-ink">{u.email}</div>
+                <div className="break-words text-ink"><Link to={`/admin/users/${u.id}`} className="hover:underline">{u.email}</Link></div>
                 <div className="mt-1.5 text-[13px] text-muted">
                   {(u.role === 'admin' ? t('admin.roleAdmin') : t('admin.roleUser'))} · {tn('admin.bookCount', u.bookCount)} · {formatBytes(u.bytesUsed, locale)}
                 </div>

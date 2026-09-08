@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { startAuthentication } from '@simplewebauthn/browser';
-import type { Locale, UpdateMeInput, UserDto } from '../../shared/apiTypes';
+import type { ChangePasswordInput, Locale, UpdateMeInput, UserDto } from '../../shared/apiTypes';
 import { useLocale } from '../i18n/LocaleProvider';
 import { ACCOUNT_DISABLED_EVENT, api, ApiClientError, UNAUTHORIZED_EVENT } from './api';
 import { saveDeviceId } from './deviceId';
@@ -21,6 +21,7 @@ interface AuthValue {
   updateLocale: (locale: Locale) => Promise<void>;
   disabledReason: boolean;
   resetPassword: (code: string, password: string) => Promise<void>;
+  changePassword: (current: string, password: string, signOutOthers: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -98,6 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
       register: async (email, password, invite) => remember(await api.post<UserDto>('/api/auth/register', { email, password, invite, locale })),
       resetPassword: async (code, password) => remember(await api.post<UserDto>('/api/auth/reset', { code, password })),
+      changePassword: async (current, password, signOutOthers) =>
+        remember(await api.post<UserDto>('/api/auth/password', { current, password, signOutOthers } satisfies ChangePasswordInput)),
       logout: async () => {
         await api.post('/api/auth/logout');
         setUser(null);

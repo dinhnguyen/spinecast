@@ -3,9 +3,9 @@ import { ADMIN_NAV } from './adminNav';
 import { settingsNav } from './settingsNav';
 
 describe('ADMIN_NAV', () => {
-  it('has exactly three rows in order overview, users, invites', () => {
-    expect(ADMIN_NAV.map((n) => n.key)).toEqual(['overview', 'users', 'invites']);
-    expect(ADMIN_NAV.map((n) => n.to)).toEqual(['/admin', '/admin/users', '/admin/invites']);
+  it('has exactly four rows in order overview, users, invites, books', () => {
+    expect(ADMIN_NAV.map((n) => n.key)).toEqual(['overview', 'users', 'invites', 'books']);
+    expect(ADMIN_NAV.map((n) => n.to)).toEqual(['/admin', '/admin/users', '/admin/invites', '/admin/books']);
   });
 });
 

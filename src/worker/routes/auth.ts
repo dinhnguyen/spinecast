@@ -14,10 +14,17 @@ import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { deviceNameFromUserAgent } from '../services/deviceName';
 import { hashPassword, randomHex, sha256Hex, verifyPassword } from '../services/crypto';
 import { isValidTimeZone } from '../services/localTime';
-import { checkRateLimit } from '../services/rateLimit';
+import { checkRateLimit, clearRateLimit } from '../services/rateLimit';
 import { createSession, deleteSession } from '../services/session';
 import { requireAuth, SESSION_COOKIE } from '../middleware/requireAuth';
-import { LOCALES, type Locale, type ResetPasswordInput, type UpdateMeInput, type UserDto } from '../../shared/apiTypes';
+import {
+  LOCALES,
+  type ChangePasswordInput,
+  type Locale,
+  type ResetPasswordInput,
+  type UpdateMeInput,
+  type UserDto,
+} from '../../shared/apiTypes';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -214,4 +221,31 @@ authRoutes.post('/reset', async (c) => {
   if (!user) throw new ApiError(400, 'reset_invalid', 'invalid reset code');
   c.header('Cache-Control', 'no-store');
   return c.json(await startSession(c, user, Math.floor(Date.now() / 1000)));
+});
+
+authRoutes.post('/password', requireAuth, async (c) => {
+  const rlKey = `password:${c.var.user.id}`;
+  if (!(await checkRateLimit(c.env.SESSIONS, rlKey, 10, 15 * 60)))
+    throw new ApiError(429, 'rate_limited', 'too many attempts');
+  const body = await readJson<ChangePasswordInput>(c);
+  if (typeof body.signOutOthers !== 'boolean') throw new ApiError(400, 'validation', 'signOutOthers must be boolean');
+  const user = await findUserById(c.env.DB, c.var.user.id);
+  if (!user) throw new ApiError(401, 'unauthorized', 'user not found');
+  if (typeof body.current !== 'string' || !(await verifyPassword(body.current, user.password_hash)))
+    throw new ApiError(400, 'invalid_credentials', 'current password is wrong');
+  await clearRateLimit(c.env.SESSIONS, rlKey);
+  const { password } = validateCredentials(user.email, body.password);
+  const passwordHash = await hashPassword(password);
+  const now = Math.floor(Date.now() / 1000);
+  if (body.signOutOthers) {
+    await c.env.DB.batch([
+      c.env.DB
+        .prepare('update users set password_hash = ?, session_epoch = session_epoch + 1 where id = ?')
+        .bind(passwordHash, user.id),
+    ]);
+    const fresh = (await findUserById(c.env.DB, user.id))!;
+    return c.json(await startSession(c, fresh, now));
+  }
+  await c.env.DB.prepare('update users set password_hash = ? where id = ?').bind(passwordHash, user.id).run();
+  return c.json(c.var.user satisfies UserDto);
 });

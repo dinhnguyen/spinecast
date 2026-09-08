@@ -11,3 +11,7 @@ export const checkRateLimit = async (
   await kv.put(k, String(current + 1), { expirationTtl: Math.max(60, windowSeconds) });
   return true;
 };
+
+export const clearRateLimit = async (kv: KVNamespace, key: string): Promise<void> => {
+  await kv.delete(`ratelimit:${key}`);
+};

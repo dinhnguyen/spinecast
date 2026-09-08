@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { app } from '../app';
 import { insertInvite } from '../db/invites';
-import { deleteDevice, insertDevice, listDevices } from '../db/devices';
+import { insertDevice, listDevices } from '../db/devices';
 import { createUser, createUserAndLogin, firstDeviceId, jsonRequest, login } from '../../../test/helpers';
 import type { UserDto } from '../../shared/apiTypes';
 
@@ -251,16 +251,6 @@ describe('auth', () => {
     const res = await app.request('/api/auth/me', { headers: { cookie } }, env);
     const body = (await res.json()) as UserDto;
     expect(body.deviceId).toBe(await firstDeviceId(env, user.id));
-  });
-
-  it('stays authenticated with a null device when the session device row is deleted', async () => {
-    const { user, cookie } = await createUserAndLogin(env);
-    const deviceId = await firstDeviceId(env, user.id);
-    expect(await deleteDevice(env.DB, user.id, deviceId)).toBe(true);
-    const res = await app.request('/api/auth/me', { headers: { cookie } }, env);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as UserDto;
-    expect(body.deviceId).toBeNull();
   });
 
   it('stores the timezone when none is set', async () => {

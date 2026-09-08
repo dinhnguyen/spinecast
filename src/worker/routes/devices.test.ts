@@ -1,8 +1,9 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { app } from '../app';
-import { createUserAndLogin, firstDeviceId, jsonRequest, login } from '../../../test/helpers';
+import { createUser, createUserAndLogin, firstDeviceId, jsonRequest, login } from '../../../test/helpers';
 import type { DevicesDto } from '../../shared/apiTypes';
+import { randomHex } from '../services/crypto';
 
 const list = async (cookie: string): Promise<DevicesDto> => {
   const res = await app.request('/api/devices', { headers: { cookie } }, env);
@@ -68,5 +69,24 @@ describe('devices api', () => {
     const { cookie } = await createUserAndLogin(env);
     const res = await app.request(...jsonRequest(`/api/devices/${otherId}`, 'PATCH', { name: 'Stolen' }, cookie), env);
     expect(res.status).toBe(404);
+  });
+
+  it('rejects a session whose device row has been deleted', async () => {
+    const a = await createUserAndLogin(env);
+    const b = await createUserAndLogin(env, { email: `${randomHex(4)}@test.local` });
+    const deviceId = await firstDeviceId(env, a.user.id);
+    await env.DB.prepare('delete from devices where id = ?').bind(deviceId).run();
+    const res = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, a.cookie), env);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe('unauthorized');
+    expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, b.cookie), env)).status).toBe(200);
+  });
+
+  it('still accepts a legacy session that carries no device id', async () => {
+    const user = await createUser(env);
+    const token = randomHex(32);
+    await env.SESSIONS.put(`session:${token}`, JSON.stringify({ u: user.id, d: null }));
+    const res = await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, `session=${token}`), env);
+    expect(res.status).toBe(200);
   });
 });

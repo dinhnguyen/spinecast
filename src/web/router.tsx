@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { RequireAdmin, RequireAuth } from './lib/auth';
 import { DisabledAccountRedirect } from './components/DisabledAccountRedirect';
 import { AdminPage } from './pages/AdminPage';
+import { AdminUserDetail } from './pages/AdminUserDetail';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ResetPage } from './pages/ResetPage';
@@ -40,7 +41,9 @@ export const router = createBrowserRouter([
       { path: '/settings/invites', element: <Navigate to="/admin/invites" replace /> },
       { path: '/admin', element: <RequireAuth><RequireAdmin><AdminPage /></RequireAdmin></RequireAuth> },
       { path: '/admin/users', element: <RequireAuth><RequireAdmin><AdminPage section="users" /></RequireAdmin></RequireAuth> },
+      { path: '/admin/users/:id', element: <RequireAuth><RequireAdmin><AdminUserDetail /></RequireAdmin></RequireAuth> },
       { path: '/admin/invites', element: <RequireAuth><RequireAdmin><AdminPage section="invites" /></RequireAdmin></RequireAuth> },
+      { path: '/admin/books', element: <RequireAuth><RequireAdmin><AdminPage section="books" /></RequireAdmin></RequireAuth> },
     ],
   },
 ]);

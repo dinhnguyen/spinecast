@@ -42,8 +42,8 @@ deviceRoutes.patch('/:id', async (c) => {
 
 deviceRoutes.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  // Deleting the device you are using would leave this session unattributed
-  // until the next login, with no way to get it back.
+  // Removing the device you are using would log this very session out on its
+  // next request; make the user do that through Log out instead.
   if (id === c.var.device?.id) throw new ApiError(400, 'validation', 'cannot remove the device you are using');
   if (!(await deleteDevice(c.env.DB, c.var.user.id, id))) throw new ApiError(404, 'not_found', 'device not found');
   return c.body(null, 204);

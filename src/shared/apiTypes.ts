@@ -47,6 +47,8 @@ export interface AdminUserDto {
   lastSeenAt: number | null;
 }
 
+export type AdminUserDetailDto = AdminUserDto & { devices: DeviceDto[]; passkeys: PasskeyDto[] };
+
 export type AdminUserPatch = { role: 'admin' | 'user' } | { disabled: boolean };
 
 export interface AdminOverviewDto {
@@ -56,9 +58,26 @@ export interface AdminOverviewDto {
 
 export interface AdminCleanupDto { deletedRows: number; deletedObjects: number }
 
+export type AdminBookSort = 'size' | 'owner' | 'shared';
+
+export interface AdminBookDto {
+  id: string;
+  ownerId: string;
+  ownerEmail: string;
+  filename: string;
+  filesize: number;
+  shared: boolean;
+  blobHash: string | null;
+  blobRefs: number;
+  createdAt: number;
+}
+
+export interface AdminBooksPageDto { items: AdminBookDto[]; nextCursor: string | null }
+
 export interface ResetCodeDto { code: string; expiresAt: number }
 
 export interface ResetPasswordInput { code: string; password: string }
+export interface ChangePasswordInput { current: string; password: string; signOutOthers: boolean }
 
 export interface UpdateMeInput {
   locale?: Locale;

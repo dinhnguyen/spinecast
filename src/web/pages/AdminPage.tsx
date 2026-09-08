@@ -6,6 +6,7 @@ import { useLocale } from '../i18n/LocaleProvider';
 import { ADMIN_NAV, type AdminSection } from '../lib/adminNav';
 import { Icon } from '../lib/icons';
 import { AdminOverview } from './AdminOverview';
+import { AdminBooks } from './AdminBooks';
 import { AdminUsers } from './AdminUsers';
 import { InvitesForm } from './InvitesForm';
 
@@ -42,7 +43,7 @@ export const AdminPage = ({ section }: { section?: AdminSection }) => {
 
   return (
     <SectionShell title={t('admin.title')} backTo="/admin" rows={ADMIN_NAV} active={active}>
-      {active === 'users' ? <AdminUsers /> : active === 'invites' ? <InvitesForm /> : <AdminOverview />}
+      {active === 'users' ? <AdminUsers /> : active === 'invites' ? <InvitesForm /> : active === 'books' ? <AdminBooks /> : <AdminOverview />}
     </SectionShell>
   );
 };

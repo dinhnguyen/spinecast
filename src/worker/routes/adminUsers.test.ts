@@ -2,10 +2,10 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { app } from '../app';
 import { findBook, insertBook } from '../db/books';
-import { insertDevice } from '../db/devices';
+import { insertDevice, listDevices } from '../db/devices';
 import { findInvite, insertInvite } from '../db/invites';
 import { insertCatalog } from '../db/opdsCatalogs';
-import { insertPasskey } from '../db/passkeys';
+import { insertPasskey, listPasskeys } from '../db/passkeys';
 import { issuePasswordReset } from '../db/passwordResets';
 import { upsertProgress } from '../db/progress';
 import { upsertBookmark } from '../db/bookmarks';
@@ -16,7 +16,7 @@ import { upsertSyncSettings } from '../db/syncSettings';
 import { setCursor } from '../db/syncCursors';
 import { findUserById } from '../db/users';
 import { randomHex } from '../services/crypto';
-import { createOpdsToken, createUser, createUserAndLogin, jsonRequest, uploadFixture } from '../../../test/helpers';
+import { createOpdsToken, createUser, createUserAndLogin, firstDeviceId, jsonRequest, uploadFixture } from '../../../test/helpers';
 
 const id = (prefix: string): string => `${prefix}-${randomHex(8)}`;
 
@@ -26,6 +26,9 @@ describe('admin users', () => {
     ['PATCH', '/api/admin/users/unknown', { disabled: true }],
     ['DELETE', '/api/admin/users/unknown', undefined],
     ['POST', '/api/admin/users/unknown/reset-code', {}],
+    ['GET', '/api/admin/users/unknown', undefined],
+    ['DELETE', '/api/admin/users/unknown/devices/x', undefined],
+    ['DELETE', '/api/admin/users/unknown/passkeys/x', undefined],
   ] as const)('%s %s requires an admin', async (method, path, body) => {
     const plain = await createUserAndLogin(env);
     expect((await app.request(...jsonRequest(path, method, body), env)).status).toBe(401);
@@ -231,5 +234,72 @@ describe('admin users', () => {
     expect(await countByBook('clippings')).toBe(0);
     expect(await countByBook('book_stats')).toBe(0);
     expect((await env.DB.prepare('select count(*) as n from books where id = ?').bind(bookId).first<{ n: number }>())!.n).toBe(0);
+  });
+
+  it('returns detail with devices and passkeys, and 404s for unknown ids', async () => {
+    const admin = await createUserAndLogin(env, { role: 'admin' });
+    const target = await createUserAndLogin(env);
+    const passkeyId = id('pk');
+    await insertPasskey(env.DB, {
+      id: passkeyId,
+      user_id: target.user.id,
+      public_key: 'pk',
+      counter: 0,
+      transports: '[]',
+      name: 'Laptop',
+      created_at: 1,
+      last_used_at: null,
+    });
+    const res = await app.request(...jsonRequest(`/api/admin/users/${target.user.id}`, 'GET', undefined, admin.cookie), env);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.email).toBe(target.user.email);
+    expect(body.devices).toHaveLength(1);
+    expect(body.devices[0]).toMatchObject({ name: expect.any(String), current: false });
+    expect(body.passkeys).toEqual([{ id: passkeyId, name: 'Laptop', createdAt: 1, lastUsedAt: null }]);
+    expect((await app.request(...jsonRequest('/api/admin/users/nope', 'GET', undefined, admin.cookie), env)).status).toBe(404);
+  });
+
+  it('revoking a device logs that device out and 404s for another user device', async () => {
+    const admin = await createUserAndLogin(env, { role: 'admin' });
+    const target = await createUserAndLogin(env);
+    const other = await createUserAndLogin(env);
+    const deviceId = await firstDeviceId(env, target.user.id);
+    const wrong = await app.request(...jsonRequest(`/api/admin/users/${other.user.id}/devices/${deviceId}`, 'DELETE', undefined, admin.cookie), env);
+    expect(wrong.status).toBe(404);
+    expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, target.cookie), env)).status).toBe(200);
+    const res = await app.request(...jsonRequest(`/api/admin/users/${target.user.id}/devices/${deviceId}`, 'DELETE', undefined, admin.cookie), env);
+    expect(res.status).toBe(204);
+    expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, target.cookie), env)).status).toBe(401);
+  });
+
+  it('allows an admin to revoke their own current device', async () => {
+    const admin = await createUserAndLogin(env, { role: 'admin' });
+    const deviceId = await firstDeviceId(env, admin.user.id);
+    const res = await app.request(...jsonRequest(`/api/admin/users/${admin.user.id}/devices/${deviceId}`, 'DELETE', undefined, admin.cookie), env);
+    expect(res.status).toBe(204);
+    expect(await listDevices(env.DB, admin.user.id)).toHaveLength(0);
+  });
+
+  it('removing a passkey leaves sessions alive and 404s for another user passkey', async () => {
+    const admin = await createUserAndLogin(env, { role: 'admin' });
+    const target = await createUserAndLogin(env);
+    const other = await createUserAndLogin(env);
+    const passkeyId = id('pk');
+    await insertPasskey(env.DB, {
+      id: passkeyId,
+      user_id: target.user.id,
+      public_key: 'pk',
+      counter: 0,
+      transports: '[]',
+      name: 'Phone',
+      created_at: 1,
+      last_used_at: null,
+    });
+    expect((await app.request(...jsonRequest(`/api/admin/users/${other.user.id}/passkeys/${passkeyId}`, 'DELETE', undefined, admin.cookie), env)).status).toBe(404);
+    const res = await app.request(...jsonRequest(`/api/admin/users/${target.user.id}/passkeys/${passkeyId}`, 'DELETE', undefined, admin.cookie), env);
+    expect(res.status).toBe(204);
+    expect(await listPasskeys(env.DB, target.user.id)).toHaveLength(0);
+    expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, target.cookie), env)).status).toBe(200);
   });
 });
