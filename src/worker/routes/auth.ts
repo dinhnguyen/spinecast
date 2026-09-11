@@ -4,7 +4,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { AppEnv } from '../appEnv';
 import { ApiError } from '../errors';
 import { findInvite, markInviteUsed } from '../db/invites';
-import { findUserByEmail, findUserById, insertUser, updateUserLocale, updateUserTimezoneIfUnset } from '../db/users';
+import { ensureUserSlug, findUserByEmail, findUserById, insertUser, updateUserLocale, updateUserTimezoneIfUnset } from '../db/users';
 import { findDevice, insertDevice, pruneDevices, touchDevice } from '../db/devices';
 import { findPasskeyById, touchPasskey } from '../db/passkeys';
 import { consumePasswordReset, findPasswordReset } from '../db/passwordResets';
@@ -89,13 +89,14 @@ const newDevice = async (c: { env: AppEnv['Bindings']; req: { header: (n: string
 
 const startSession = async (
   c: Context<AppEnv>,
-  user: { id: string; email: string; role: 'admin' | 'user'; locale: Locale; session_epoch: number },
+  user: { id: string; slug: string | null; email: string; role: 'admin' | 'user'; locale: Locale; session_epoch: number },
   now: number,
 ): Promise<UserDto> => {
   const deviceId = await newDevice(c, user.id, now);
   const token = await createSession(c.env, user.id, deviceId, user.session_epoch);
   setSessionCookie(c, token, Number(c.env.SESSION_TTL_SECONDS));
-  return { id: user.id, email: user.email, role: user.role, locale: user.locale, deviceId };
+  const slug = await ensureUserSlug(c.env.DB, user);
+  return { id: user.id, slug, email: user.email, role: user.role, locale: user.locale, deviceId };
 };
 
 export const authRoutes = new Hono<AppEnv>();
@@ -113,7 +114,7 @@ authRoutes.post('/register', async (c) => {
   const locale: Locale = isLocale(body.locale) ? body.locale : 'vi';
   await insertUser(c.env.DB, { id, email, password_hash: await hashPassword(password), role: 'user', locale, created_at: now });
   await markInviteUsed(c.env.DB, invite.code, id);
-  const dto = await startSession(c, { id, email, role: 'user', locale, session_epoch: 0 }, now);
+  const dto = await startSession(c, { id, slug: null, email, role: 'user', locale, session_epoch: 0 }, now);
   return c.json(dto, 201);
 });
 

@@ -14,7 +14,7 @@ describe('opds token routes', () => {
     const body = await created.json();
     expect(body.scope).toBe('library');
     expect(body.token).toMatch(/^[a-z2-7]{24}$/);
-    expect(body.url).toBe(`http://localhost/opds/${user.id}/library`);
+    expect(body.url).toBe(`http://localhost/o/${user.slug}/l`);
 
     const listed = await app.request(...jsonRequest('/api/opds/tokens', 'GET', undefined, cookie), env);
     const dto = await listed.json();
@@ -24,7 +24,7 @@ describe('opds token routes', () => {
     expect(dto.public).toBeNull();
     expect(JSON.stringify(dto)).not.toContain(body.token);
 
-    const feed = await app.request(`http://localhost/opds/${user.id}/library`, { headers: basicAuth(body.token) }, env);
+    const feed = await app.request(`http://localhost/o/${user.slug}/l`, { headers: basicAuth(body.token) }, env);
     expect(feed.status).toBe(200);
   });
 
@@ -37,7 +37,7 @@ describe('opds token routes', () => {
     const revealedBody = await revealed.json();
     expect(revealedBody).toEqual({ scope: 'library', token: created.token, url: created.url });
 
-    const feed = await app.request(`http://localhost/opds/${user.id}/library`, { headers: basicAuth(created.token) }, env);
+    const feed = await app.request(`http://localhost/o/${user.slug}/l`, { headers: basicAuth(created.token) }, env);
     expect(feed.status).toBe(200);
   });
 
@@ -53,7 +53,7 @@ describe('opds token routes', () => {
     const first = (await (await app.request(...jsonRequest('/api/opds/tokens/public', 'POST', undefined, cookie), env)).json()).token;
     const second = (await (await app.request(...jsonRequest('/api/opds/tokens/public', 'POST', undefined, cookie), env)).json()).token;
     expect(second).not.toBe(first);
-    const root = `http://localhost/opds/${user.id}/public`;
+    const root = `http://localhost/o/${user.slug}/p`;
     expect((await app.request(root, { headers: basicAuth(first) }, env)).status).toBe(401);
     expect((await app.request(root, { headers: basicAuth(second) }, env)).status).toBe(200);
     const del = await app.request(...jsonRequest('/api/opds/tokens/public', 'DELETE', undefined, cookie), env);

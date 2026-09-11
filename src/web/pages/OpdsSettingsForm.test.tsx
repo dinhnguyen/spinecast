@@ -50,7 +50,7 @@ describe('OpdsSettingsForm share link', () => {
       const url = String(input);
       if (url.includes('/api/opds/tokens/public')) return Promise.resolve(json({ token: 'tok-xyz', createdAt: 100, lastUsedAt: null }));
       if (url.includes('/api/opds/tokens')) return Promise.resolve(json({ library: null, public: null, sharedCount: 0 }));
-      return Promise.resolve(json({ id: 'u1', email: 'a@b.c', role: 'user', locale: 'vi' }));
+      return Promise.resolve(json({ id: 'u1', slug: 'ab3k9x', email: 'a@b.c', role: 'user', locale: 'vi' }));
     });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
@@ -63,7 +63,7 @@ describe('OpdsSettingsForm share link', () => {
     const shareBtn = await screen.findByRole('button', { name: 'Sao chép link chia sẻ' });
     expect(screen.getAllByRole('button', { name: 'Sao chép link chia sẻ' }).length).toBe(1);
     fireEvent.click(shareBtn);
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/catalogs?url=${encodeURIComponent(`${window.location.origin}/opds/u1/public`)}&token=tok-xyz`);
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/catalogs?url=${encodeURIComponent(`${window.location.origin}/o/ab3k9x/p`)}&token=tok-xyz`);
   });
 });
 
@@ -79,10 +79,10 @@ describe('OpdsSettingsForm reveal', () => {
       const url = String(input);
       if (url.includes('/api/opds/tokens/library/reveal')) {
         revealCalls++;
-        return Promise.resolve(json({ scope: 'library', token: 'tok-old', url: 'http://localhost/opds/u1/library' }));
+        return Promise.resolve(json({ scope: 'library', token: 'tok-old', url: 'http://localhost/o/ab3k9x/l' }));
       }
       if (url.includes('/api/opds/tokens')) return Promise.resolve(json({ library: { createdAt: 100, lastUsedAt: null, revealable: true }, public: null, sharedCount: 0 }));
-      return Promise.resolve(json({ id: 'u1', email: 'a@b.c', role: 'user', locale: 'vi' }));
+      return Promise.resolve(json({ id: 'u1', slug: 'ab3k9x', email: 'a@b.c', role: 'user', locale: 'vi' }));
     });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
@@ -103,7 +103,7 @@ describe('OpdsSettingsForm reveal', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
       if (url.includes('/api/opds/tokens')) return Promise.resolve(json({ library: { createdAt: 100, lastUsedAt: null, revealable: false }, public: null, sharedCount: 0 }));
-      return Promise.resolve(json({ id: 'u1', email: 'a@b.c', role: 'user', locale: 'vi' }));
+      return Promise.resolve(json({ id: 'u1', slug: 'ab3k9x', email: 'a@b.c', role: 'user', locale: 'vi' }));
     });
 
     mount();

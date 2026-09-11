@@ -37,6 +37,8 @@ app.route('/api/opds/tokens', opdsTokenRoutes);
 app.route('/api/devices', deviceRoutes);
 app.route('/api/passkeys', passkeyRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/o/:slug/:scope', opdsRoutes);
+// The original long form, kept so readers configured before the short path keep working.
 app.route('/opds/:userId/:scope', opdsRoutes);
 
 app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));

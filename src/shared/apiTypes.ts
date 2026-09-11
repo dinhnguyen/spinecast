@@ -34,6 +34,7 @@ export type ApiErrorCode =
 
 export interface UserDto {
   id: string;
+  slug: string;
   email: string;
   role: 'admin' | 'user';
   locale: Locale;

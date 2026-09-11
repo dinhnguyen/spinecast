@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/opds/*"]
+    "run_worker_first": ["/api/*", "/o/*", "/opds/*"]
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "spinecast", "database_id": "cf5e470a-1a34-4255-8b7c-3615a89ff1b0", "migrations_dir": "migrations" }

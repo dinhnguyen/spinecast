@@ -2,7 +2,7 @@ import { createMiddleware } from 'hono/factory';
 import { getCookie } from 'hono/cookie';
 import type { AppEnv } from '../appEnv';
 import { ApiError } from '../errors';
-import { findUserById } from '../db/users';
+import { ensureUserSlug, findUserById } from '../db/users';
 import { findDevice } from '../db/devices';
 import { getSession } from '../services/session';
 
@@ -24,7 +24,8 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   const device = session.deviceId ? await findDevice(c.env.DB, user.id, session.deviceId) : null;
   if (session.deviceId && !device) throw new ApiError(401, 'unauthorized', 'device revoked');
   c.set('device', device);
-  c.set('user', { id: user.id, email: user.email, role: user.role, locale: user.locale, deviceId: device?.id ?? null });
+  const slug = await ensureUserSlug(c.env.DB, user);
+  c.set('user', { id: user.id, slug, email: user.email, role: user.role, locale: user.locale, deviceId: device?.id ?? null });
   await next();
 });
 

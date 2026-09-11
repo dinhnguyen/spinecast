@@ -12,7 +12,9 @@ const basic = (password: string, username = 'x'): Record<string, string> => ({
 
 const testApp = new Hono<OpdsEnv>();
 testApp.use('/opds/:userId/:scope/*', opdsAuth);
-testApp.get('/opds/:userId/:scope/ping', (c) => c.text(`${c.var.opdsUser}:${c.var.opdsScope}`));
+testApp.get('/opds/:userId/:scope/ping', (c) => c.text(`${c.var.opdsUser}:${c.var.opdsScope}:${c.var.opdsBase}`));
+testApp.use('/o/:slug/:scope/*', opdsAuth);
+testApp.get('/o/:slug/:scope/ping', (c) => c.text(`${c.var.opdsUser}:${c.var.opdsScope}:${c.var.opdsBase}`));
 
 const withToken = async (scope: 'library' | 'public' = 'library') => {
   const u = await createUser(env);
@@ -38,7 +40,7 @@ describe('opdsAuth', () => {
     const { u, token } = await withToken();
     const res = await testApp.request(`/opds/${u.id}/library/ping`, { headers: basic(token, 'anything') }, env);
     expect(res.status).toBe(200);
-    expect(await res.text()).toBe(`${u.id}:library`);
+    expect(await res.text()).toBe(`${u.id}:library:/opds/${u.id}/library`);
   });
 
   it('rejects a valid token owned by a disabled user', async () => {
@@ -55,6 +57,21 @@ describe('opdsAuth', () => {
     expect((await testApp.request(`/opds/${u.id}/library/ping`, { headers: basic(token) }, env)).status).toBe(401);
     expect((await testApp.request(`/opds/nobody/public/ping`, { headers: basic(token) }, env)).status).toBe(401);
     expect((await testApp.request(`/opds/${u.id}/other/ping`, { headers: basic(token) }, env)).status).toBe(404);
+  });
+
+  it('resolves the short slug path to the same user and scope', async () => {
+    const { u, token } = await withToken('public');
+    const res = await testApp.request(`/o/${u.slug}/p/ping`, { headers: basic(token) }, env);
+    expect(res.status).toBe(200);
+    // The base stays on the short form so the feed's own links do too.
+    expect(await res.text()).toBe(`${u.id}:public:/o/${u.slug}/p`);
+  });
+
+  it('answers an unknown slug like a wrong token, and an unknown scope letter with 404', async () => {
+    const { u, token } = await withToken();
+    expect((await testApp.request(`/o/zzzzzz/l/ping`, { headers: basic(token) }, env)).status).toBe(401);
+    expect((await testApp.request(`/o/${u.slug}/p/ping`, { headers: basic(token) }, env)).status).toBe(401);
+    expect((await testApp.request(`/o/${u.slug}/x/ping`, { headers: basic(token) }, env)).status).toBe(404);
   });
 
   it('touches last_used_at at most once per minute', async () => {

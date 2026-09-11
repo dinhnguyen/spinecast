@@ -96,7 +96,7 @@ export const OpdsSettingsForm = () => {
                 <span className="hidden md:inline">{t('settings.opds.libraryDescDesktop')}</span>
               </>
             }
-            url={catalogUrl(window.location.origin, user.id, 'library')}
+            url={catalogUrl(window.location.origin, user.slug, 'library')}
             token={tokens?.library ?? null}
             revealed={revealed.library ?? null}
             busy={busyScope === 'library'}
@@ -116,12 +116,12 @@ export const OpdsSettingsForm = () => {
                 <span className="hidden md:inline">{t('settings.opds.publicDescDesktop', { sharedLine })}</span>
               </>
             }
-            url={catalogUrl(window.location.origin, user.id, 'public')}
+            url={catalogUrl(window.location.origin, user.slug, 'public')}
             token={tokens?.public ?? null}
             revealed={revealed.public ?? null}
             shareLink={
               revealed.public
-                ? `${window.location.origin}/catalogs?url=${encodeURIComponent(catalogUrl(window.location.origin, user.id, 'public'))}&token=${encodeURIComponent(revealed.public)}`
+                ? `${window.location.origin}/catalogs?url=${encodeURIComponent(catalogUrl(window.location.origin, user.slug, 'public'))}&token=${encodeURIComponent(revealed.public)}`
                 : null
             }
             busy={busyScope === 'public'}

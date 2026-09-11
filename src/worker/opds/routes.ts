@@ -22,7 +22,7 @@ const coverType = (key: string | null): string | null => {
 };
 
 // Absolute catalog root for the current user and scope, no trailing slash.
-const baseUrl = (c: Ctx): string => `${new URL(c.req.url).origin}/opds/${c.var.opdsUser}/${c.var.opdsScope}`;
+const baseUrl = (c: Ctx): string => `${new URL(c.req.url).origin}${c.var.opdsBase}`;
 
 export const bookEntry = (base: string, row: BookRow): BookEntry => ({
   id: `urn:spinecast:book:${row.id}`,

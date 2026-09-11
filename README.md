@@ -20,14 +20,18 @@ The whole application is one Cloudflare Worker: no server to keep alive, and no 
 ## Main features
 
 **Accounts**
-- Invite only. An admin mints codes under Cài đặt › Mã mời; everyone else registers with one.
+- Invite only. An admin mints codes under Administration › Invites; a code lasts seven days, can be revoked while unused, and the list shows which account redeemed it.
 - Sign in with email and password, or with a **passkey** (Face ID, Touch ID, a security key) and type nothing at all. Passwords are not replaced; they remain the recovery path.
-- Every browser that logs in becomes its own device, listed and renameable under Cài đặt › Thiết bị.
+- Change your own password under Settings › Account. The current one is asked for first, and the same form can sign every other device out.
+- No self-service reset and no email is ever sent. An admin issues a single-use link instead, good for 24 hours and shown once; using it ends every session the account had and signs you in on the spot.
+- Every browser that logs in becomes its own device, listed and renameable under Settings › Devices. Remove one and the session it minted stops working on its next request.
 
 **Books and reader**
 - Upload `.epub` files up to 100 MB; metadata and cover art are extracted on the way in.
+- Grid or list view, search by title or author, sort by recently read, title, author or date added. Select mode shares, unshares or deletes in bulk.
 - Reader built on foliate-js: paginated or scrolled, adjustable font size, line height, margins, typeface and theme (light / paper / dark), table of contents, in-book search.
 - Highlights in four colours with notes, plus bookmarks.
+- Two accounts that upload the same file share one object in R2. It is reference counted, so a delete only frees the bytes once the last book pointing at them is gone.
 
 **Sync with an e-reader**
 - Reading progress travels both ways through crosspoint-sync, carrying KOReader xpath positions so the web reader and the device land on the same paragraph.
@@ -42,7 +46,14 @@ The whole application is one Cloudflare Worker: no server to keep alive, and no 
 
 **OPDS in both directions**
 - *Serving*: two catalogs per user, a private one holding every book and a public one holding only what you chose to share, each behind its own token.
-- *Consuming*: the Nguồn tab saves external OPDS catalogs, browses them live and imports books into your own library.
+- *Consuming*: the Sources tab saves external OPDS catalogs, browses them live and imports books into your own library.
+- Tokens are stored encrypted rather than hashed, so Settings › Share via OPDS can show one again later instead of making you regenerate it. The public catalog also copies a share link that opens the recipient's Sources tab with the URL and token already filled in.
+
+**Administration**
+- Overview: how many users, books and stored files exist and how many bytes they hold, plus orphans - a file row with no book, or an R2 object with no row. Cleanup rechecks each candidate immediately before deleting it, so an upload racing the scan is not destroyed.
+- Users: change role, lock and unlock, issue a reset link, or delete the account with every book it owns. Deleting asks for the exact email typed back, and role, lock and delete all refuse to act on your own account. Locking bumps the account's session epoch, so a locked user is out everywhere at once.
+- A user's own page lists their devices and passkeys and revokes either one. A revoked device is signed out on its next request, the one you are sitting at included.
+- Books: a storage view - filename, owner, size, whether that file is shared with another account, date added, fifty rows at a time. Titles are deliberately absent; this page is for finding what takes up space, not for reading over anyone's shoulder.
 
 **Other**
 - Vietnamese and English UI, following the browser language on first visit and then stored on the account.
@@ -53,10 +64,12 @@ The whole application is one Cloudflare Worker: no server to keep alive, and no 
 <details>
 <summary><b>OPDS: using your own catalog from an e-reader</b></summary>
 
-Each user has two catalogs behind HTTP Basic Auth. The username is ignored; the password is a token created under Cài đặt › Thư viện OPDS:
+Each user has two catalogs behind HTTP Basic Auth. The username is ignored; the password is a token created under Settings › Share via OPDS:
 
-- `https://<host>/opds/<userId>/library` - every book you own
-- `https://<host>/opds/<userId>/public` - only books switched to "Chia sẻ vào thư viện public"
+- `https://<host>/o/<slug>/l` - every book you own
+- `https://<host>/o/<slug>/p` - only books switched to "Share to shared library"
+
+The slug is six characters so the whole URL can be typed on an e-reader keyboard. The older `https://<host>/opds/<userId>/<scope>` form still works, so a reader configured before this keeps running.
 
 In KOReader: File manager › Search › OPDS catalog › add, paste the URL, any username, the token as the password. Downloads are the original files, so KOReader's document hashes match what Spinecast stored at upload and crosspoint-sync progress lines up exactly.
 
@@ -66,7 +79,7 @@ Routes under a catalog: `/` (navigation), `/all`, `/recent`, `/authors`, `/autho
 <details>
 <summary><b>OPDS: adding an external source</b></summary>
 
-The Nguồn tab saves OPDS catalogs. Add one with its catalog URL plus a username and password if it needs them; the URL is probed once on save, so a wrong address or password fails immediately. Browsing walks the feed live: nothing is cached and nothing is prefetched. "Tải về" downloads the file the catalog serves, byte for byte, so the KOReader hashes match and crosspoint-sync progress lines up exactly as it does for an uploaded book. A book already downloaded from that catalog shows "Đã có" instead of a download button.
+The Sources tab saves OPDS catalogs. Add one with its catalog URL plus a username and password if it needs them; the URL is probed once on save, so a wrong address or password fails immediately. Browsing walks the feed live: nothing is cached and nothing is prefetched. "Add" downloads the file the catalog serves, byte for byte, so the KOReader hashes match and crosspoint-sync progress lines up exactly as it does for an uploaded book. A book already downloaded from that catalog shows "In library" instead of a download button.
 
 Cover art travels through the same proxy and is re-served from Spinecast's own origin. Only `image/jpeg`, `image/png`, `image/gif` and `image/webp` are accepted; an SVG cover is refused deliberately, since serving SVG from your own origin is an XSS vector.
 
@@ -78,7 +91,7 @@ Only OPDS 1.2 (Atom XML) with optional HTTP Basic auth is supported. Catalogs on
 <details>
 <summary><b>Passkeys</b></summary>
 
-Add one under Cài đặt › Passkey. Adding asks for the account password again: a passkey is a permanent extra key to the account, so a borrowed session must not be enough to mint one. Once a passkey exists, the login screen offers "Đăng nhập bằng passkey" and signs in with no email and no password typed.
+Add one under Settings › Passkeys. Adding asks for the account password again: a passkey is a permanent extra key to the account, so a borrowed session must not be enough to mint one. Once a passkey exists, the login screen offers "Sign in with a passkey" and signs in with no email and no password typed.
 
 **A passkey is bound to the hostname it was created on.** The RP ID comes from the request, so one enrolled against `localhost` will not work on the production hostname and vice versa. That is WebAuthn behaving as specified.
 
@@ -87,7 +100,7 @@ Only ES256 authenticators with discoverable credentials are used, both platform 
 
 ## Architecture
 
-One Cloudflare Worker serves all three surfaces: a Hono JSON API under `/api/*`, the OPDS catalogs under `/opds/*`, and the React SPA through Static Assets. D1 holds users, books and sync state; R2 holds the EPUB files and covers; KV holds sessions, WebAuthn challenges and rate-limit counters. Every call to crosspoint-sync goes through the Worker; the browser never talks to it directly.
+One Cloudflare Worker serves all three surfaces: a Hono JSON API under `/api/*`, the OPDS catalogs under `/o/*` (and the older `/opds/*`), and the React SPA through Static Assets. Admin-only routes live under `/api/admin/*` behind a role check. D1 holds users, books and sync state; R2 holds the EPUB files and covers; KV holds sessions, WebAuthn challenges and rate-limit counters. Every call to crosspoint-sync goes through the Worker; the browser never talks to it directly.
 
 ```
 src/worker/      Hono app: routes, middleware, services, sync client, opds

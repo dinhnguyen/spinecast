@@ -2,7 +2,7 @@ import type { Env } from '../src/worker/env';
 import type { BookDto, OpdsScope } from '../src/shared/apiTypes';
 import { app } from '../src/worker/app';
 import { encryptString, hashPassword } from '../src/worker/services/crypto';
-import { insertUser } from '../src/worker/db/users';
+import { ensureUserSlug, insertUser } from '../src/worker/db/users';
 import { listDevices } from '../src/worker/db/devices';
 import { randomHex } from '../src/worker/services/crypto';
 import { upsertOpdsToken } from '../src/worker/db/opdsTokens';
@@ -11,6 +11,7 @@ import { buildMinimalEpub } from './fixtures/makeMinimalEpub';
 
 export interface TestUser {
   id: string;
+  slug: string;
   email: string;
   password: string;
   role: 'admin' | 'user';
@@ -22,6 +23,7 @@ export const createUser = async (
 ): Promise<TestUser> => {
   const user: TestUser = {
     id: randomHex(8),
+    slug: '',
     email: opts.email ?? `${randomHex(4)}@test.local`,
     password: opts.password ?? 'secret-pass-1',
     role: opts.role ?? 'user',
@@ -34,6 +36,7 @@ export const createUser = async (
     locale: 'vi',
     created_at: Math.floor(Date.now() / 1000),
   });
+  user.slug = await ensureUserSlug(env.DB, { id: user.id, slug: null });
   return user;
 };
 

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../appEnv';
+import { scopeChar } from '../../shared/opds';
 import type { OpdsScope, OpdsTokenCreatedDto, OpdsTokenDto, OpdsTokensDto } from '../../shared/apiTypes';
 import { ApiError } from '../errors';
 import { countSharedBooks } from '../db/opdsBooks';
@@ -34,7 +35,7 @@ opdsTokenRoutes.post('/:scope', async (c) => {
   const token = generateOpdsToken();
   const [hash, enc] = await Promise.all([hashOpdsToken(token), encryptString(token, c.env.SYNC_ENC_KEY)]);
   await upsertOpdsToken(c.env.DB, c.var.user.id, scope, hash, enc, Math.floor(Date.now() / 1000));
-  const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/opds/${c.var.user.id}/${scope}` };
+  const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/o/${c.var.user.slug}/${scopeChar(scope)}` };
   return c.json(dto, 201);
 });
 
@@ -43,7 +44,7 @@ opdsTokenRoutes.get('/:scope/reveal', async (c) => {
   const row = await findOpdsToken(c.env.DB, c.var.user.id, scope);
   if (!row || !row.token_enc) throw new ApiError(404, 'not_found', 'no token to reveal');
   const token = await decryptString(row.token_enc, c.env.SYNC_ENC_KEY);
-  const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/opds/${c.var.user.id}/${scope}` };
+  const dto: OpdsTokenCreatedDto = { scope, token, url: `${new URL(c.req.url).origin}/o/${c.var.user.slug}/${scopeChar(scope)}` };
   return c.json(dto);
 });
 

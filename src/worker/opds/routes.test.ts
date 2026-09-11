@@ -29,6 +29,16 @@ describe('opds catalog routes', () => {
     expect(xml).toContain('<content type="text">1 books</content>');
   });
 
+  it('serves the same catalog over the short slug path, with links on that path', async () => {
+    const { user, token, book } = await setup();
+    const short = `http://localhost/o/${user.slug}/l`;
+    const res = await app.request(`${short}/all`, { headers: basicAuth(token) }, env);
+    expect(res.status).toBe(200);
+    const xml = await res.text();
+    expect(xml).toContain(`href="${short}/books/${book.id}.epub" type="application/epub+zip"`);
+    expect(xml).not.toContain(`/opds/${user.id}/`);
+  });
+
   it('lists books with absolute acquisition and cover links', async () => {
     const { get, base, book } = await setup();
     const res = await get('library/all');

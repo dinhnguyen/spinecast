@@ -34,7 +34,7 @@ const setup = async () => {
     const success = await reset(code, 'new-password-123');
     expect(success.status).toBe(200);
     expect(success.headers.get('cache-control')).toBe('no-store');
-    expect(await success.json()).toEqual({ id: b.user.id, email: b.user.email, role: 'user', locale: 'vi', deviceId: expect.any(String) });
+    expect(await success.json()).toEqual({ id: b.user.id, email: b.user.email, role: 'user', locale: 'vi', slug: b.user.slug, deviceId: expect.any(String) });
     const freshCookie = success.headers.get('set-cookie')!.split(';')[0]!;
     expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, freshCookie), env)).status).toBe(200);
     expect((await app.request(...jsonRequest('/api/auth/me', 'GET', undefined, b.cookie), env)).status).toBe(401);

@@ -17,6 +17,7 @@ describe('auth', () => {
     expect(cookie).toContain('SameSite=Lax');
     expect(await res.json()).toEqual({
       id: user.id,
+      slug: user.slug,
       email: user.email,
       role: 'user',
       locale: 'vi',
