@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminCleanupDto, AdminOverviewDto } from '../../shared/apiTypes';
+import type { AdminCleanupDto, AdminOverviewDto, AdminRehashDto } from '../../shared/apiTypes';
 import { api } from '../lib/api';
 
 interface UseAdminOverviewResult {
@@ -8,6 +8,7 @@ interface UseAdminOverviewResult {
   error: unknown;
   reload: () => Promise<void>;
   cleanup: () => Promise<AdminCleanupDto>;
+  rehash: () => Promise<{ updated: number; missing: number }>;
 }
 
 export const useAdminOverview = (): UseAdminOverviewResult => {
@@ -35,5 +36,22 @@ export const useAdminOverview = (): UseAdminOverviewResult => {
 
   const cleanup = useCallback((): Promise<AdminCleanupDto> => api.post<AdminCleanupDto>('/api/admin/overview/cleanup'), []);
 
-  return { overview, loading, error, reload, cleanup };
+  // The server rehashes one batch per call and hands back a cursor; walk it here
+  // so the page sees a single action. A cursor that fails to advance would loop
+  // forever, so stop on one that repeats.
+  const rehash = useCallback(async () => {
+    let cursor: string | null = null;
+    let updated = 0;
+    let missing = 0;
+    for (;;) {
+      const path = cursor === null ? '/api/admin/overview/rehash' : `/api/admin/overview/rehash?after=${encodeURIComponent(cursor)}`;
+      const res: AdminRehashDto = await api.post<AdminRehashDto>(path);
+      updated += res.updated;
+      missing += res.missing;
+      if (res.cursor === null || res.cursor === cursor) return { updated, missing };
+      cursor = res.cursor;
+    }
+  }, []);
+
+  return { overview, loading, error, reload, cleanup, rehash };
 };

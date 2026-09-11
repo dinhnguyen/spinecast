@@ -356,6 +356,11 @@ export const en: Record<keyof typeof vi, string> & PluralOne = {
   'admin.cleanup': 'Clean up',
   'admin.cleanupConfirm': 'Delete the orphan files found?',
   'admin.cleaned': 'Orphan files cleaned up',
+  'admin.rehash': 'Recompute sync hashes',
+  'admin.rehashConfirm':
+    "Recompute every book's KOReader sync hash? Reading progress recorded against the old hash will not carry over.",
+  'admin.rehashing': 'Recomputing…',
+  'admin.rehashed': '{updated} books updated, {missing} files missing',
   'admin.email': 'Email',
   'admin.role': 'Role',
   'admin.roleAdmin': 'Admin',

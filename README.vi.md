@@ -54,6 +54,7 @@ Toàn bộ ứng dụng nằm trên một Cloudflare Worker duy nhất: không c
 - Người dùng: đổi vai trò, khoá và mở khoá, cấp link reset, hoặc xoá tài khoản cùng toàn bộ sách của nó. Xoá thì phải gõ lại đúng email, còn đổi vai trò, khoá và xoá đều từ chối tác động lên chính tài khoản đang đăng nhập. Khoá sẽ tăng session epoch, nên người bị khoá văng ra khỏi mọi nơi cùng lúc.
 - Trang riêng của từng người liệt kê thiết bị và passkey của họ, thu hồi được cả hai. Thiết bị bị thu hồi sẽ bị đăng xuất ở request kế tiếp, kể cả chính cái bạn đang ngồi.
 - Sách: một bảng nhìn theo dung lượng - tên file, chủ sở hữu, kích thước, file đó có đang dùng chung với tài khoản khác không, ngày thêm, mỗi lần 50 dòng. Cố tình không hiện tên sách; trang này để tìm chỗ nào đang chiếm dung lượng, không phải để ngó xem người khác đọc gì.
+- Tính lại hash đồng bộ: ghi lại partial-MD5 kiểu KOReader cho toàn bộ sách, chạy theo lô. Chỉ cần một lần, cho thư viện đã upload trước khi hash được sửa để khối đầu tiên bắt đầu ở offset 0. Job chỉ đọc mười hai khối 1 KB mà hash đi qua, không tải cả file.
 
 **Khác**
 - Giao diện tiếng Việt và tiếng Anh, lần đầu theo ngôn ngữ trình duyệt rồi lưu theo tài khoản.

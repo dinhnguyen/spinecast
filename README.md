@@ -54,6 +54,7 @@ The whole application is one Cloudflare Worker: no server to keep alive, and no 
 - Users: change role, lock and unlock, issue a reset link, or delete the account with every book it owns. Deleting asks for the exact email typed back, and role, lock and delete all refuse to act on your own account. Locking bumps the account's session epoch, so a locked user is out everywhere at once.
 - A user's own page lists their devices and passkeys and revokes either one. A revoked device is signed out on its next request, the one you are sitting at included.
 - Books: a storage view - filename, owner, size, whether that file is shared with another account, date added, fifty rows at a time. Titles are deliberately absent; this page is for finding what takes up space, not for reading over anyone's shoulder.
+- Recompute sync hashes: rewrites every book's KOReader partial-MD5 in batches. Needed once, for libraries uploaded before the hash was corrected to start its first chunk at offset 0. It reads only the twelve 1 KB windows the hash covers, not whole files.
 
 **Other**
 - Vietnamese and English UI, following the browser language on first visit and then stored on the account.

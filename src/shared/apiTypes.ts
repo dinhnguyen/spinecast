@@ -59,6 +59,12 @@ export interface AdminOverviewDto {
 
 export interface AdminCleanupDto { deletedRows: number; deletedObjects: number }
 
+export interface AdminRehashDto {
+  scanned: number; updated: number; missing: number;
+  // Last book id of the batch when one more batch is due, else null.
+  cursor: string | null;
+}
+
 export type AdminBookSort = 'size' | 'owner' | 'shared';
 
 export interface AdminBookDto {

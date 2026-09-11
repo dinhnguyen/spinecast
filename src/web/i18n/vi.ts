@@ -344,6 +344,11 @@ export const vi = {
   'admin.cleanup': 'Dọn',
   'admin.cleanupConfirm': 'Xoá các tệp mồ côi đã tìm thấy?',
   'admin.cleaned': 'Đã dọn tệp mồ côi',
+  'admin.rehash': 'Tính lại hash đồng bộ',
+  'admin.rehashConfirm':
+    'Tính lại hash đồng bộ KOReader cho toàn bộ sách? Tiến độ đọc đã ghi theo hash cũ sẽ không được chuyển sang.',
+  'admin.rehashing': 'Đang tính lại…',
+  'admin.rehashed': 'Đã cập nhật {updated} cuốn, thiếu {missing} tệp',
   'admin.email': 'Email',
   'admin.role': 'Vai trò',
   'admin.roleAdmin': 'Quản trị viên',

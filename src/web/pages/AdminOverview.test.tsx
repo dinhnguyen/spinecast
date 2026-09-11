@@ -67,6 +67,50 @@ describe('AdminOverview', () => {
     expect(await screen.findByText('Đã dọn tệp mồ côi')).toBeTruthy();
   });
 
+  it('walks the rehash cursor to the end and sums the counts across batches', async () => {
+    const posted: string[] = [];
+    mockFetch(clean, (url, init) => {
+      if (!url.startsWith('/api/admin/overview/rehash') || init?.method !== 'POST') return null;
+      posted.push(url);
+      // Two full batches then a short one; the page must not stop at the first.
+      if (posted.length === 1) return json({ scanned: 40, updated: 40, missing: 0, cursor: 'b40' });
+      if (posted.length === 2) return json({ scanned: 40, updated: 38, missing: 2, cursor: 'b80' });
+      return json({ scanned: 7, updated: 7, missing: 0, cursor: null });
+    });
+    mount();
+
+    await screen.findByText('3');
+    act(() => screen.getByText('Tính lại hash đồng bộ').click());
+
+    const confirmDialog = await screen.findByRole('alertdialog');
+    await act(async () => within(confirmDialog).getByText('Tính lại hash đồng bộ').click());
+
+    expect(await screen.findByText('Đã cập nhật 85 cuốn, thiếu 2 tệp')).toBeTruthy();
+    expect(posted).toEqual([
+      '/api/admin/overview/rehash',
+      '/api/admin/overview/rehash?after=b40',
+      '/api/admin/overview/rehash?after=b80',
+    ]);
+  });
+
+  it('stops rehashing if the server hands back a cursor that does not advance', async () => {
+    let posts = 0;
+    mockFetch(clean, (url, init) => {
+      if (!url.startsWith('/api/admin/overview/rehash') || init?.method !== 'POST') return null;
+      posts++;
+      return json({ scanned: 40, updated: 1, missing: 0, cursor: 'stuck' });
+    });
+    mount();
+
+    await screen.findByText('3');
+    act(() => screen.getByText('Tính lại hash đồng bộ').click());
+    const confirmDialog = await screen.findByRole('alertdialog');
+    await act(async () => within(confirmDialog).getByText('Tính lại hash đồng bộ').click());
+
+    expect(await screen.findByText('Đã cập nhật 2 cuốn, thiếu 0 tệp')).toBeTruthy();
+    expect(posts).toBe(2);
+  });
+
   it('surfaces a cleanup failure as an alert instead of swallowing it', async () => {
     mockFetch(dirty, (url, init) => {
       if (url === '/api/admin/overview/cleanup' && init?.method === 'POST') {

@@ -16,11 +16,13 @@ const Figure = ({ label, value }: { label: string; value: string }) => (
 
 export const AdminOverview = () => {
   const { t, locale } = useLocale();
-  const { overview, loading, error, reload, cleanup } = useAdminOverview();
+  const { overview, loading, error, reload, cleanup, rehash } = useAdminOverview();
   const { toast, show } = useToast();
   const [confirming, setConfirming] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [cleanupError, setCleanupError] = useState<string | null>(null);
+  const [rehashConfirming, setRehashConfirming] = useState(false);
+  const [rehashing, setRehashing] = useState(false);
 
   if (loading) return <p>{t('admin.loading')}</p>;
 
@@ -54,6 +56,20 @@ export const AdminOverview = () => {
     }
   };
 
+  const handleRehash = async () => {
+    setRehashConfirming(false);
+    setCleanupError(null);
+    setRehashing(true);
+    try {
+      const { updated, missing } = await rehash();
+      show(t('admin.rehashed', { updated, missing }));
+    } catch (e) {
+      setCleanupError(describeError(e, t));
+    } finally {
+      setRehashing(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-5 rounded-lg border border-border bg-surface p-5 md:grid-cols-4">
@@ -77,11 +93,30 @@ export const AdminOverview = () => {
           </Button>
         </div>
       ) : null}
+      <div className="flex items-center gap-3">
+        <Button
+          kind="surface"
+          onClick={() => {
+            setCleanupError(null);
+            setRehashConfirming(true);
+          }}
+          disabled={rehashing}
+        >
+          {rehashing ? t('admin.rehashing') : t('admin.rehash')}
+        </Button>
+      </div>
       {cleanupError ? (
         <p role="alert" className="text-[13.5px] text-danger">
           {cleanupError}
         </p>
       ) : null}
+      <ConfirmDialog
+        open={rehashConfirming}
+        message={t('admin.rehashConfirm')}
+        confirmLabel={t('admin.rehash')}
+        onConfirm={() => void handleRehash()}
+        onCancel={() => setRehashConfirming(false)}
+      />
       <ConfirmDialog
         open={confirming}
         message={t('admin.cleanupConfirm')}

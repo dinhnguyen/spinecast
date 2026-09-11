@@ -4,13 +4,33 @@ const CHUNK = 1024;
 
 // Port of KOReader util.partialMD5: for i = -1..10 seek to 1024 << (2*i), read up to 1024 bytes,
 // stop at the first offset at or past EOF (Lua file:read returns nil there).
-export const partialMd5 = async (bytes: Uint8Array): Promise<string> => {
+//
+// i = -1 is not a right shift. KOReader calls bit.lshift(1024, -2), and LuaJIT
+// masks the shift count to five bits (-2 becomes 30), so 1024 << 30 overflows
+// uint32 to 0 and the first chunk starts at the first byte of the file.
+export const partialMd5Offsets = (size: number): number[] => {
+  const offsets: number[] = [];
+  for (let i = -1; i <= 10; i++) {
+    const offset = i < 0 ? 0 : CHUNK << (2 * i);
+    if (offset >= size) break;
+    offsets.push(offset);
+  }
+  return offsets;
+};
+
+// Reads up to `length` bytes at `offset`. Returning fewer bytes is fine (a tail
+// chunk); returning null means the source is gone and the hash cannot be built.
+export type ChunkReader = (offset: number, length: number) => Promise<Uint8Array | null>;
+
+// The offset walk lives here once: the in-memory path below and the R2 ranged-read
+// path in rehashBooks must not drift apart, or a rehash would write a hash that
+// ingest would never reproduce.
+export const partialMd5Ranged = async (size: number, read: ChunkReader): Promise<string | null> => {
   const parts: Uint8Array[] = [];
   let total = 0;
-  for (let i = -1; i <= 10; i++) {
-    const offset = i < 0 ? CHUNK >> (-2 * i) : CHUNK << (2 * i);
-    if (offset >= bytes.length) break;
-    const part = bytes.subarray(offset, Math.min(offset + CHUNK, bytes.length));
+  for (const offset of partialMd5Offsets(size)) {
+    const part = await read(offset, Math.min(CHUNK, size - offset));
+    if (part === null) return null;
     parts.push(part);
     total += part.length;
   }
@@ -22,6 +42,11 @@ export const partialMd5 = async (bytes: Uint8Array): Promise<string> => {
   }
   return md5Hex(joined);
 };
+
+export const partialMd5 = async (bytes: Uint8Array): Promise<string> =>
+  (await partialMd5Ranged(bytes.length, (offset, length) =>
+    Promise.resolve(bytes.subarray(offset, offset + length)),
+  ))!;
 
 export const filenameMd5 = (filename: string): Promise<string> => {
   const base = filename.split(/[\\/]/).pop() ?? filename;
