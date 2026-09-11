@@ -8,7 +8,7 @@ interface UseAdminOverviewResult {
   error: unknown;
   reload: () => Promise<void>;
   cleanup: () => Promise<AdminCleanupDto>;
-  rehash: () => Promise<{ updated: number; missing: number }>;
+  rehash: (onBatch: (scanned: number) => void) => Promise<{ updated: number; missing: number }>;
 }
 
 export const useAdminOverview = (): UseAdminOverviewResult => {
@@ -39,15 +39,20 @@ export const useAdminOverview = (): UseAdminOverviewResult => {
   // The server rehashes one batch per call and hands back a cursor; walk it here
   // so the page sees a single action. A cursor that fails to advance would loop
   // forever, so stop on one that repeats.
-  const rehash = useCallback(async () => {
+  const rehash = useCallback(async (onBatch: (scanned: number) => void) => {
     let cursor: string | null = null;
+    let scanned = 0;
     let updated = 0;
     let missing = 0;
     for (;;) {
       const path = cursor === null ? '/api/admin/overview/rehash' : `/api/admin/overview/rehash?after=${encodeURIComponent(cursor)}`;
       const res: AdminRehashDto = await api.post<AdminRehashDto>(path);
+      scanned += res.scanned;
       updated += res.updated;
       missing += res.missing;
+      // Reported per batch rather than at the end: a large library takes several
+      // batches, and a button that only says "working" tells you nothing.
+      onBatch(scanned);
       if (res.cursor === null || res.cursor === cursor) return { updated, missing };
       cursor = res.cursor;
     }

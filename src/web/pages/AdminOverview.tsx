@@ -23,6 +23,7 @@ export const AdminOverview = () => {
   const [cleanupError, setCleanupError] = useState<string | null>(null);
   const [rehashConfirming, setRehashConfirming] = useState(false);
   const [rehashing, setRehashing] = useState(false);
+  const [rehashScanned, setRehashScanned] = useState(0);
 
   if (loading) return <p>{t('admin.loading')}</p>;
 
@@ -59,9 +60,10 @@ export const AdminOverview = () => {
   const handleRehash = async () => {
     setRehashConfirming(false);
     setCleanupError(null);
+    setRehashScanned(0);
     setRehashing(true);
     try {
-      const { updated, missing } = await rehash();
+      const { updated, missing } = await rehash(setRehashScanned);
       show(t('admin.rehashed', { updated, missing }));
     } catch (e) {
       setCleanupError(describeError(e, t));
@@ -102,7 +104,7 @@ export const AdminOverview = () => {
           }}
           disabled={rehashing}
         >
-          {rehashing ? t('admin.rehashing') : t('admin.rehash')}
+          {rehashing ? t('admin.rehashing', { scanned: rehashScanned, total: overview.books }) : t('admin.rehash')}
         </Button>
       </div>
       {cleanupError ? (

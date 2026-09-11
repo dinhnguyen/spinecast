@@ -347,7 +347,7 @@ export const vi = {
   'admin.rehash': 'Tính lại hash đồng bộ',
   'admin.rehashConfirm':
     'Tính lại hash đồng bộ KOReader cho toàn bộ sách? Tiến độ đọc đã ghi theo hash cũ sẽ không được chuyển sang.',
-  'admin.rehashing': 'Đang tính lại…',
+  'admin.rehashing': 'Đang tính lại {scanned}/{total}…',
   'admin.rehashed': 'Đã cập nhật {updated} cuốn, thiếu {missing} tệp',
   'admin.email': 'Email',
   'admin.role': 'Vai trò',

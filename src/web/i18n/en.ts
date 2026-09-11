@@ -359,7 +359,7 @@ export const en: Record<keyof typeof vi, string> & PluralOne = {
   'admin.rehash': 'Recompute sync hashes',
   'admin.rehashConfirm':
     "Recompute every book's KOReader sync hash? Reading progress recorded against the old hash will not carry over.",
-  'admin.rehashing': 'Recomputing…',
+  'admin.rehashing': 'Recomputing {scanned} of {total}…',
   'admin.rehashed': '{updated} books updated, {missing} files missing',
   'admin.email': 'Email',
   'admin.role': 'Role',

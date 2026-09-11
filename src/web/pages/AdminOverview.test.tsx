@@ -93,6 +93,37 @@ describe('AdminOverview', () => {
     ]);
   });
 
+  it('counts up on the button as each batch lands, instead of only at the end', async () => {
+    // Hold each batch open so the mid-loop button text can be read.
+    // mockFetch resolves immediately, so this one is hand-rolled: each rehash
+    // POST parks on a promise the test resolves when it wants the next batch.
+    const gates: ((r: Response) => void)[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === '/api/admin/overview') return Promise.resolve(json(clean));
+      if (url.startsWith('/api/admin/overview/rehash') && init?.method === 'POST') {
+        return new Promise<Response>((resolve) => gates.push(resolve));
+      }
+      return Promise.resolve(json({ error: { code: 'not_found', message: 'nope' } }, 404));
+    });
+    mount();
+
+    await screen.findByText('3');
+    act(() => screen.getByText('Tính lại hash đồng bộ').click());
+    const confirmDialog = await screen.findByRole('alertdialog');
+    await act(async () => within(confirmDialog).getByText('Tính lại hash đồng bộ').click());
+
+    await waitFor(() => expect(gates.length).toBe(1));
+    expect(screen.getByText('Đang tính lại 0/23…')).toBeTruthy();
+
+    await act(async () => gates[0]!(json({ scanned: 10, updated: 10, missing: 0, cursor: 'b10' })));
+    await waitFor(() => expect(screen.getByText('Đang tính lại 10/23…')).toBeTruthy());
+
+    await waitFor(() => expect(gates.length).toBe(2));
+    await act(async () => gates[1]!(json({ scanned: 13, updated: 13, missing: 0, cursor: null })));
+    expect(await screen.findByText('Đã cập nhật 23 cuốn, thiếu 0 tệp')).toBeTruthy();
+  });
+
   it('stops rehashing if the server hands back a cursor that does not advance', async () => {
     let posts = 0;
     mockFetch(clean, (url, init) => {

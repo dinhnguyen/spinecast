@@ -26,19 +26,18 @@ export type ChunkReader = (offset: number, length: number) => Promise<Uint8Array
 // path in rehashBooks must not drift apart, or a rehash would write a hash that
 // ingest would never reproduce.
 export const partialMd5Ranged = async (size: number, read: ChunkReader): Promise<string | null> => {
-  const parts: Uint8Array[] = [];
-  let total = 0;
-  for (const offset of partialMd5Offsets(size)) {
-    const part = await read(offset, Math.min(CHUNK, size - offset));
-    if (part === null) return null;
-    parts.push(part);
-    total += part.length;
-  }
+  // At most twelve reads, and the offsets do not depend on each other, so issue
+  // them together: over R2 that is one round trip per book instead of twelve.
+  const parts = await Promise.all(
+    partialMd5Offsets(size).map((offset) => read(offset, Math.min(CHUNK, size - offset))),
+  );
+  if (parts.includes(null)) return null;
+  const total = parts.reduce((n, p) => n + p!.length, 0);
   const joined = new Uint8Array(total);
   let pos = 0;
   for (const p of parts) {
-    joined.set(p, pos);
-    pos += p.length;
+    joined.set(p!, pos);
+    pos += p!.length;
   }
   return md5Hex(joined);
 };
