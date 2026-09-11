@@ -31,8 +31,11 @@ export const ensureUserSlug = async (db: D1Database, user: Pick<UserRow, 'id' | 
     try {
       const res = await db.prepare('update users set slug = ? where id = ? and slug is null').bind(slug, user.id).run();
       if (res.meta.changes > 0) return slug;
-    } catch {
-      continue; // slug already taken, draw another
+    } catch (err) {
+      // Only a collision is worth another draw. Anything else - a missing column
+      // because the migration has not been applied, a dead D1 - has to surface as
+      // itself instead of being retried five times into a misleading message.
+      if (!/UNIQUE constraint failed/i.test(String(err))) throw err;
     }
     // Nothing changed: a concurrent request assigned one first.
     const row = await db.prepare('select slug from users where id = ?').bind(user.id).first<{ slug: string | null }>();
