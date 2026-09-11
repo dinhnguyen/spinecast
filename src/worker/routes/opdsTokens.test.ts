@@ -13,7 +13,7 @@ describe('opds token routes', () => {
     expect(created.status).toBe(201);
     const body = await created.json();
     expect(body.scope).toBe('library');
-    expect(body.token).toMatch(/^[a-z2-7]{24}$/);
+    expect(body.token).toMatch(/^[a-z2-7]{6}$/);
     expect(body.url).toBe(`http://localhost/o/${user.slug}/l`);
 
     const listed = await app.request(...jsonRequest('/api/opds/tokens', 'GET', undefined, cookie), env);

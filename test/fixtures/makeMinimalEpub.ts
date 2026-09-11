@@ -1,5 +1,7 @@
 import { strToU8, zipSync } from 'fflate';
 
+const FIXED_MTIME = new Date('2020-01-01T00:00:00Z');
+
 export const buildMinimalEpub = (): Uint8Array => {
   const container = `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`;
   const opf = `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">urn:uuid:1</dc:identifier><dc:title>Minimal Book</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta name="cover" content="cover-img"/></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/><item id="c2" href="c2.xhtml" media-type="application/xhtml+xml"/><item id="cover-img" href="cover.png" media-type="image/png" properties="cover-image"/></manifest><spine><itemref idref="c1"/><itemref idref="c2"/></spine></package>`;
@@ -19,6 +21,9 @@ export const buildMinimalEpub = (): Uint8Array => {
       'OEBPS/c2.xhtml': strToU8(chapter(2)),
       'OEBPS/cover.png': png,
     },
-    { level: 6 },
+    // Without a pinned mtime fflate stamps each entry with the current time, which
+    // a zip records at 2-second resolution - two builds either side of a tick
+    // differ byte for byte and no longer dedup by hash.
+    { level: 6, mtime: FIXED_MTIME },
   );
 };
